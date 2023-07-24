@@ -15,3 +15,6 @@
 --------- Multilines ----------
 - multil-lined ifs are & together not "or'ed" together
 - can use multiple lines of ifs and fors. The first for must come before the first if.
+
+--------- Other Comprehensions ----------
+- tuple comprehensions don't exist

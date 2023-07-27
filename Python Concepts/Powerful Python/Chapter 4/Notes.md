@@ -6,3 +6,6 @@
 --------- Accepting and Passing Variable Args ----------
 - Argument packing and unpacking. When the *args goes into the function def then packing.
 - Args is for positional arguments, but python also has keyword arguments or *kwargs.
+--------- Functions as objects ----------
+- Pythons max function will evaluate a string lexigraphically
+- functions are objects in python.

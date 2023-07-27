@@ -9,3 +9,5 @@
 --------- Functions as objects ----------
 - Pythons max function will evaluate a string lexigraphically
 - functions are objects in python.
+--------- Key Functions in Python ----------
+- functions like sorted, max or min have second params that are key args

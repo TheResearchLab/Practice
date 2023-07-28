@@ -1,0 +1,6 @@
+------ Basic Decorator --------
+- decorator is a function that takes a function
+- bare function is the function that the decorator is applied to
+- end result is a decorated function
+- adding self to (*args,**kwargs) ie. (self,*args,**kwargs) turns decorator into a decorator that only works with funcs that at least have 1 arg.
+- adding the self arg works for class methods

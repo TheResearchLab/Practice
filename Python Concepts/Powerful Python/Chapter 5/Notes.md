@@ -7,3 +7,5 @@
 ------ Data in Decorators --------
 - data can be added in the decorator but outside the wrapper to keep track of data each time the function is called, but data only instantiated once.
 - the nonlocal is used in cases where the container for a variable changes in memory. In the case of the variable changing nonlocal is needed because variable change unlike with the dictionary where the dictionaries contents change but not the variable holding the object.
+
+------ Data in Decorators --------

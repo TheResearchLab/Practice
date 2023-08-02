@@ -11,7 +11,10 @@
 ------ Decorators That Take Args --------
 
 
------- Class Decorators --------
+------ Method Decorators --------
 - Any object can be made callable. Can instantiate functions 
 - Class decorators can leverage inheritance.
 - Author has strong feelings that the reader should get comfortable with function and object decorators.
+
+------ Class Decorators --------
+- 

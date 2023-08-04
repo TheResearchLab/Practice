@@ -17,4 +17,10 @@
 - Author has strong feelings that the reader should get comfortable with function and object decorators.
 
 ------ Class Decorators --------
-- 
+
+---- Preserving the Wrapped Function ----
+- function objects automatically have attrs like __name__ __doc__ __module__. Wrappers break code relying on them.
+
+- decorators mask wrapped function signature and blocks inspect.getsource()
+
+- decorators can't be applied in class methods or descriptors

@@ -1,0 +1,3 @@
+--------- Chapter 6 Intro ---------
+- Types of Errors (Index Errors, Key Errors, Value Errors, Type Errors, Import Error)
+--------- The Basics ---------

@@ -1,3 +1,5 @@
 --------- Chapter 6 Intro ---------
 - Types of Errors (Index Errors, Key Errors, Value Errors, Type Errors, Import Error)
 --------- The Basics ---------
+--------- Exceptions are objects ---------
+- Calling attributes on the exception objects can provide more information in exception handling.

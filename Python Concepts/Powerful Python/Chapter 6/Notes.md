@@ -3,3 +3,6 @@
 --------- The Basics ---------
 --------- Exceptions are objects ---------
 - Calling attributes on the exception objects can provide more information in exception handling.
+--------- Raising Exceptions ---------
+- Good for code readabilty and is suggested to do
+- Can you use a method in a class to return an instantiation of the class?

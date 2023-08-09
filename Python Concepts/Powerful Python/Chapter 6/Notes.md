@@ -6,3 +6,5 @@
 --------- Raising Exceptions ---------
 - Good for code readabilty and is suggested to do
 - Can you use a method in a class to return an instantiation of the class?
+--------- Catching and Re-raising Exceptions ---------
+- Pattern of catching and reraising allows dev to customize actions in the error handling process. Useful for logging metadata at the time of the error.

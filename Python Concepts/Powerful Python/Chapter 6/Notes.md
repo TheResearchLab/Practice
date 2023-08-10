@@ -8,3 +8,6 @@
 - Can you use a method in a class to return an instantiation of the class?
 --------- Catching and Re-raising Exceptions ---------
 - Pattern of catching and reraising allows dev to customize actions in the error handling process. Useful for logging metadata at the time of the error.
+--------- The Most Diabolical Python Anti-pattern ---------
+- Unneccessary engineer hours looking for bugs can be avoided by not doing this pattern. Don't hide errors!
+- Use logging package if needed. 

@@ -4,6 +4,7 @@ import cloudpickle as cp
 from sklearn.model_selection import train_test_split
 import xgboost
 import time as t
+import numpy as np
 
 email = ''
 schema = ''
@@ -29,6 +30,8 @@ new_session = createConnection()
 
 
 def main() -> None:
+
+    # Sklearn packages/module metadata
 
     modelDict = { "Classification":{
             "LogisticRegression":"sklearn.linear_model",
@@ -57,32 +60,56 @@ def main() -> None:
     } 
 
 
-   
+   #================== Model Instance Functions =====================#
 
     
-    
+    # instantiate new ml model 
     def modelInstance(session,modelName,moduleName):
-        modelOutput = session.call("MLBuilder",str(modelName),str(moduleName))
+        modelOutput = session.call("InstantiatePythonObject",str(modelName),'Model',str(moduleName))
         if not hasattr(st.session_state,'hyperparams') or st.session_state.hyperparams == {}:
-            return cp.loads(bytes.fromhex(modelOutput)) 
+            return cp.loads(bytes.fromhex(modelOutput))
         else:
             return cp.loads(bytes.fromhex(modelOutput)).set_params(**st.session_state.hyperparams)
-    
-    def getTrainAndTestData(session,tableName):
-        # Load features
-        df = session.table(tableName).to_pandas()
-        X = df.iloc[:,:-1]
-        y = df.iloc[:,-1:]
+            
+
+
+   #================== Data Related Functions =====================#
+
+    def getTrainAndTestData(session,tableName,dataStore) -> list:
+        if dataStore == 'My Computer':
+            return None
+        
+        if dataStore == 'Snowflake':
+            df = session.table(tableName).to_pandas()
+            X = df.iloc[:,:-1]
+            y = df.iloc[:,-1:]
+            return train_test_split(X, y, test_size=0.2, random_state = 42) # these should get parameterized
 
         # Split dataset into training and test
-        return train_test_split(X, y, test_size=0.2, random_state = 42)
+    
+    def inputDataCheck(dataStore,modelData) -> bool:
+        if dataStore == 'My Computer':
+            st.error("Self Uploads Are Currently Not Supported", icon='☹')
+            return False
+        if dataStore == 'Snowflake' and modelData == '':
+            st.error("Please Enter A Table To Build Your Model", icon='☹')
+            return False
+        else:
+            return True
+        
+    def dataPreprocessorInstance(session,className,moduleName):
+        dataPreprocessor = session.call("InstantiatePythonObject",str(className),'Data Preprocessor',str(moduleName))
+        return cp.loads(bytes.fromhex(dataPreprocessor))
+
+
+
     
     
-    #Sidebar
+    
+   #================== App frontend design =====================#
+    
+    
     st.sidebar.success('© 2023 The Top Secret Data Science Club™')
-
-
-
 
     st.header(':green[PH]-No-Code-ML')
 
@@ -95,10 +122,6 @@ def main() -> None:
        modelData = st.file_uploader('Upload Data')
     algoType = st.selectbox("Algorithm Type", [i for i in modelDict[predictionTask].keys()]) 
     
-    
-    
-    #st.session_state.library = modelDict[predictionTask][algoType]
-
 
     # Create Buttons for Setting Model Parameters, Model Training, and Data Transformations 
     paramsBtn,dataTransformBtn,trainBtn,predictBtn,saveBtn = st.columns([0.07,0.06,0.04,0.04,0.04],gap="small")
@@ -115,18 +138,22 @@ def main() -> None:
 
     
     
-    def updateHyperparameters(hyperParamDict):
+    def updateHyperparameters(modelParamDict,algoType) -> None:
+        st.session_state.hyperparams.update(modelParamDict)
+        st.session_state.algoType = algoType
+        st.text(st.session_state.hyperparams)
         st.success('Updated Hyperparameters')
-            #Update model parameters
-        #for key,value in hyperParamDict:    
-        #    modelParamDict[key] = st.session_state.hyperparam_form[key]
-        #    st.write(f"{key}: {modelParamDict[key]}")
+        
     
     
 
+    
+
+   #================== App Event Listeners =====================#
+
     #Dictionary to hold new parameters
-    modelParamDict = {} #Should I move this?
-    placeholder = st.empty()
+    modelParamDict = {}
+    placeholder = st.empty() 
 
     # Logic for getting model parameters and setting (Custom Form)
     if getParams == 'Yes':
@@ -139,8 +166,6 @@ def main() -> None:
             elif bool(st.session_state.hyperparams):
                 model = modelInstance(new_session,str(algoType) ,str(modelDict[predictionTask][algoType]))
                 modelParamDict = model.get_params()
-            else:
-                st.text('something else')
 
         
             st.write(f" :green[{algoType}] Hyperparameters")
@@ -149,39 +174,77 @@ def main() -> None:
             submitted = st.form_submit_button("Update Hyperparameters")
 
             if submitted:
-                st.session_state.hyperparams.update(modelParamDict)
-                st.session_state.algoType = algoType
-                st.text(st.session_state.hyperparams)
-                #st.success('We Did It!')
-                #st.session_state.hyperparams = {}
-                #st.text(st.session_state.hyperparams)
+                updateHyperparameters(modelParamDict,algoType)
                 placeholder.empty()
         
 
-        
-    
-            
-        
-                 
-        
-        
-      
-    
+
     # Logic for training a model
     if trainModel:
-        if dataStore == 'My Computer':
-            st.error("Self Uploads Are Currently Not Supported", icon='☹')
-        if dataStore == 'Snowflake' and modelData == '':
-            st.error("Please Enter A Table To Build Your Model", icon='☹')
+        if not inputDataCheck(dataStore,modelData):
+            return None
         else:
             model = modelInstance(new_session,str(algoType) ,str(modelDict[predictionTask][algoType]))
-            X_train, X_test, y_train, y_test = getTrainAndTestData(new_session,str(modelData)) #Only Supports Snowflake data for now
+            # if there is data in cache get 
+            X_train, X_test, y_train, y_test = st.session_state.data #Only Supports Snowflake data for now
             model.fit(X_train,y_train)
             st.title("Model Accuracy")
             st.text(model.score(X_test,y_test))
+
+    dataPreprocessingDict = {
+        "StandardScaler": {"class":"StandardScaler","moduleName":"sklearn.preprocessing"},
+        "MinMaxScaler": {"class":"MinMaxScaler","moduleName":"sklearn.preprocessing"},
+        #"OneHotEncoder": {"module":"OneHotEncoder","package":"sklearn.preprocessing"},
+    }
+
     
-    if dataChanges:
-        pass
+    if dataChanges == 'Yes' and inputDataCheck(dataStore,modelData):
+            if not hasattr(st.session_state,"data"):
+                st.session_state.data = getTrainAndTestData(new_session,str(modelData),dataStore)
+            
+            X_train,X_test,y_train,y_test = st.session_state.data
+            
+            dataTransformationForm = st.empty()
+            with dataTransformationForm.form("transformData"):
+                transformX = st.selectbox("Independent Variable Transformations",['None','StandardScaler','MinMaxScaler','Log-Transform'])
+                transformY = st.selectbox("Dependent Variable Transformations",['None','Log-Transform'])
+                submitted = st.form_submit_button("submit")
+            
+            if submitted:
+                if transformX != 'None' and transformX != 'Log-Transform':
+                    moduleName = dataPreprocessingDict[transformX]["moduleName"]
+                    objectClass = dataPreprocessingDict[transformX]["class"]
+                    dataPreprocessor = dataPreprocessorInstance(new_session,objectClass,moduleName)
+                    scaledXtrain = dataPreprocessor.fit_transform(X_train)
+                    scaledXtest = dataPreprocessor.fit_transform(X_test)
+                    st.success(f"X_train Shape:{scaledXtrain.shape}, X_test Shape:{scaledXtest.shape}")
+
+                
+                if transformX == 'Log-Transform':
+                    transformedXtrain = np.log(X_train)
+                    transformedXtest = np.log(X_test)
+                    st.success(f"X_train Shape:{transformedXtrain.shape}, X_test Shape:{transformedXtest.shape}")
+
+
+                # if transformY != 'None' and transformY != 'Log-Transform':
+                #     moduleName = dataPreprocessingDict[transformY]["moduleName"]
+                #     objectClass = dataPreprocessingDict[transformY]["class"]
+                #     dataPreprocessor = dataPreprocessorInstance(new_session,objectClass,moduleName)
+                #     scaledYtrain = dataPreprocessor.fit_transform(y_train)
+                #     scaledYtest = dataPreprocessor.fit_transform(y_test)
+                #     st.success(scaledYtrain.shape)
+                
+                if transformY == 'Log-Transform':
+                    transformedYtrain = np.log(y_train)
+                    transformedYtest = np.log(y_test)
+                    st.success(f"Y_train Shape:{transformedYtrain.shape}, Y_test Shape:{transformedYtest.shape}")
+
+
+                st.session_state.data = [X_train,X_test,y_train,y_test]
+
+                dataTransformationForm.empty()
+
+
 
     if predictModel:
         pass

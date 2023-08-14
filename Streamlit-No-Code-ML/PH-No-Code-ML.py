@@ -5,6 +5,7 @@ from sklearn.model_selection import train_test_split
 import xgboost
 import time as t
 import numpy as np
+import pandas as pd
 
 email = ''
 schema = ''
@@ -64,15 +65,25 @@ def main() -> None:
 
     
     # instantiate new ml model 
-    def modelInstance(session,modelName,moduleName):
-        modelOutput = session.call("InstantiatePythonObject",str(modelName),'Model',str(moduleName))
-        if not hasattr(st.session_state,'hyperparams') or st.session_state.hyperparams == {}:
+    @st.experimental_singleton  
+    def modelInstance(_session,modelName,moduleName,hyperparams={}):
+        modelOutput = _session.call("InstantiatePythonObject",str(modelName),'Model',str(moduleName))
+        if hyperparams == {}:
             return cp.loads(bytes.fromhex(modelOutput))
         else:
-            return cp.loads(bytes.fromhex(modelOutput)).set_params(**st.session_state.hyperparams)
+            return cp.loads(bytes.fromhex(modelOutput)).set_params(**hyperparams)
             
 
-
+    def modelTrain():
+        if hasattr(st.session_state,'data'):    
+            X_train, X_test, y_train, y_test = st.session_state.data #Only Supports Snowflake data for now
+            model.fit(X_train,y_train)
+            return [model,X_test,y_test]
+            
+        else:
+            X_train, X_test, y_train, y_test = getTrainAndTestData(new_session,str(modelData),dataStore) #Only Supports Snowflake data for now
+            model.fit(X_train,y_train)
+            return [model,X_test,y_test]
    #================== Data Related Functions =====================#
 
     def getTrainAndTestData(session,tableName,dataStore) -> list:
@@ -81,9 +92,11 @@ def main() -> None:
         
         if dataStore == 'Snowflake':
             df = session.table(tableName).to_pandas()
+            st.session_state.dataCols = df.columns
             X = df.iloc[:,:-1]
             y = df.iloc[:,-1:]
-            return train_test_split(X, y, test_size=0.2, random_state = 42) # these should get parameterized
+            st.session_state.data = train_test_split(X, y, test_size=0.2, random_state = 42) # these should get parameterized
+            return st.session_state.data
 
         # Split dataset into training and test
     
@@ -130,11 +143,11 @@ def main() -> None:
     with dataTransformBtn:
         dataChanges = st.selectbox('Transform Data',['No','Yes'],index=0)
     with trainBtn:
-        trainModel = st.button('💪 Train')
-    with predictBtn:
-        predictModel = st.button('🧐 Predict')
+        trainModel = st.selectbox('Train',['No','Yes'],index=0)
     with saveBtn:
-        saveModel = st.button('📝 Save')
+        saveModel = st.selectbox('Save',['No','Yes'],index=0)
+    with predictBtn:
+        predictModel = st.selectbox('Predict',['No','Yes'],index=0)
 
     
     
@@ -155,8 +168,42 @@ def main() -> None:
     modelParamDict = {}
     placeholder = st.empty() 
 
+    def boolConverter(value):
+        boolDict = {"True":True,"False":False}
+        if value in ('True','False'):
+            return boolDict[value]
+        else:
+            return value
+    
+    def intConverter(value):
+        try:
+            value = int(value)
+            return value
+        except ValueError:
+            try:
+                if str(float(value)).endswith(".0"):
+                    value = int(float(value))
+                    return value   
+            except ValueError:
+                return value
+            
+    def floatConverter(value):
+        try:
+            value = float(value)
+            return value 
+        except:
+            return value
+
+    def noneTypeConverter(value):
+        if value == 'None':
+            return None
+        else:
+            return value 
+    
+
+
     # Logic for getting model parameters and setting (Custom Form)
-    if getParams == 'Yes':
+    if getParams == 'Yes' and 'Yes' not in [dataChanges,trainModel,saveModel,predictModel]:
 
         with placeholder.form("hyperparam_form"):
             if not hasattr(st.session_state,'algoType') or st.session_state.algoType != algoType:
@@ -164,13 +211,17 @@ def main() -> None:
                 model = modelInstance(new_session,str(algoType) ,str(modelDict[predictionTask][algoType]))
                 modelParamDict = model.get_params()
             elif bool(st.session_state.hyperparams):
-                model = modelInstance(new_session,str(algoType) ,str(modelDict[predictionTask][algoType]))
+                hyperparams = st.session_state.hyperparams
+                model = modelInstance(new_session,str(algoType) ,str(modelDict[predictionTask][algoType]),hyperparams)
                 modelParamDict = model.get_params()
-
         
             st.write(f" :green[{algoType}] Hyperparameters")
             for key,value in modelParamDict.items():
                 modelParamDict[key] = st.text_input(f"{key}",modelParamDict.get(key,value))
+                modelParamDict[key] = floatConverter(modelParamDict[key])
+                modelParamDict[key] = intConverter(modelParamDict[key])
+                modelParamDict[key] = boolConverter(modelParamDict[key])
+                modelParamDict[key] = noneTypeConverter(modelParamDict[key])
             submitted = st.form_submit_button("Update Hyperparameters")
 
             if submitted:
@@ -180,17 +231,24 @@ def main() -> None:
 
 
     # Logic for training a model
-    if trainModel:
+    if trainModel == 'Yes' and 'Yes' not in [getParams,dataChanges,saveModel,predictModel]:
         if not inputDataCheck(dataStore,modelData):
             return None
-        else:
+        elif hasattr(st.session_state,'hyperparams'):
+            hyperparams = st.session_state.hyperparams
+            model = modelInstance(new_session,str(algoType) ,str(modelDict[predictionTask][algoType]),hyperparams)
+        elif not hasattr(st.session_state,'hyperparams') :
             model = modelInstance(new_session,str(algoType) ,str(modelDict[predictionTask][algoType]))
-            # if there is data in cache get 
-            X_train, X_test, y_train, y_test = st.session_state.data #Only Supports Snowflake data for now
-            model.fit(X_train,y_train)
-            st.title("Model Accuracy")
-            st.text(model.score(X_test,y_test))
 
+        trainedModel,X_test,y_test = modelTrain()
+        st.session_state.model = cp.dumps(trainedModel).hex()
+
+        st.title("Model Accuracy")
+        st.text(trainedModel.score(X_test,y_test))
+
+
+
+    # Data Transformations
     dataPreprocessingDict = {
         "StandardScaler": {"class":"StandardScaler","moduleName":"sklearn.preprocessing"},
         "MinMaxScaler": {"class":"MinMaxScaler","moduleName":"sklearn.preprocessing"},
@@ -198,9 +256,9 @@ def main() -> None:
     }
 
     
-    if dataChanges == 'Yes' and inputDataCheck(dataStore,modelData):
+    if dataChanges == 'Yes' and inputDataCheck(dataStore,modelData) and 'Yes' not in [getParams,trainModel,saveModel,predictModel]:
             if not hasattr(st.session_state,"data"):
-                st.session_state.data = getTrainAndTestData(new_session,str(modelData),dataStore)
+                getTrainAndTestData(new_session,str(modelData),dataStore)
             
             X_train,X_test,y_train,y_test = st.session_state.data
             
@@ -246,11 +304,50 @@ def main() -> None:
 
 
 
-    if predictModel:
-        pass
+    if predictModel == 'Yes' and 'Yes' not in [getParams,dataChanges,trainModel,saveModel]:
+        if not inputDataCheck(dataStore,modelData): # if dataset is not specified
+            st.stop()
+        if not hasattr(st.session_state,'data'):
+            getTrainAndTestData(new_session,str(modelData),dataStore)
+        elif hasattr(st.session_state,'hyperparams'):
+            hyperparams = st.session_state.hyperparams
+            model = modelInstance(new_session,str(algoType) ,str(modelDict[predictionTask][algoType]),hyperparams)
+        elif not hasattr(st.session_state,'hyperparams') :
+            model = modelInstance(new_session,str(algoType) ,str(modelDict[predictionTask][algoType]))
+        predictionForm = st.empty()
+        preDict = {key:'' for key in st.session_state.dataCols[0:-1]}
 
-    if saveModel:
-        pass
+        with predictionForm.form('predict_here'):
+            for key,value in preDict.items():
+                preDict[key] = st.text_input(f"{key}",modelParamDict.get(key,value))
+            submitted = st.form_submit_button("submit")
+            
+        if submitted:
+          trainedModel,X_test,y_test = modelTrain()
+          sampleData = np.array([int(feature) for key,feature in preDict.items()])
+          sampleData = sampleData.reshape(1,len(sampleData))
+          st.success(f'{trainedModel.predict(sampleData)}')
+          predictionForm.empty() 
+          
+
+
+    if saveModel == 'Yes' and 'Yes' not in [getParams,dataChanges,trainModel,predictModel]:
+        saveModelForm = st.empty()
+        with saveModelForm.form('save_here'):
+            # File or database
+            locationType = st.selectbox('Save Method',['Snowflake Table'])
+            locationName = st.text_input('Save Model As','')
+            submitted = st.form_submit_button('submit')
+        
+        if submitted:
+            data = pd.DataFrame({"Model":[st.session_state.model]})
+            snowpark_df = new_session.write_pandas(data, "saved_models", auto_create_table=True, table_type="temporary")
+            snowpark_df.write.mode("append").save_as_table("saved_models")
+
+
+
+            saveModelForm.empty()
+            st.success('submitted')
 
     return None
 

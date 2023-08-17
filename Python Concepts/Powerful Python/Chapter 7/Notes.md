@@ -4,3 +4,8 @@
 - Author speaks about properties like a mix between methods and class members. Javascript also has properties 
 - Setting properties at run-time might be useful for different calculations that could be done based on input params
 - Maintaining internal variables and using getters and setters can allow developers code to be more maintainable.
+--------- The Factory Patterns ---------
+- Two patterns 1) Simple Factory Pattern & 2) Factory Method Pattern
+- SFP is when the object type remains the same but want diff variations
+- FMP is where factory can dynamically choose different types
+--------- Alternative Constructors: The Simple Factory ---------

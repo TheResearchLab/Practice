@@ -60,6 +60,15 @@ def main() -> None:
             }
     } 
 
+    sklearnData = {"module":"sklearn.datasets",
+                     "data":{
+                         "Iris (Multi-Class Classification)":"load_iris",
+                         "Diabetes (Regression)":"load_diabetes",
+                         "Wine (Mult-Class Classification)":"load_wine",
+                         "Breast Cancer (Binary Classification)":"load_breast"
+                     } 
+                   }
+
 
    #================== Model Instance Functions =====================#
 
@@ -86,19 +95,37 @@ def main() -> None:
             return [model,X_test,y_test]
    #================== Data Related Functions =====================#
 
+    # Data processors help perform statistics based transformations
+    def pythonObjectInstance(session,className,moduleName):
+        pythonObjectInst = session.call("InstantiatePythonObject",str(className),'Other',str(moduleName))
+        return cp.loads(bytes.fromhex(pythonObjectInst))
+    
+    def trainTestSplit(dataframe) -> None:
+        X = dataframe.iloc[:,:-1]
+        y = dataframe.iloc[:,-1:]
+        st.session_state.data = train_test_split(X, y, test_size=0.2, random_state = 42) #parameterize in future
+        st.session_state.dataCols = dataframe.columns
+        return None
+    
+    
     def getTrainAndTestData(session,tableName,dataStore) -> list:
         if dataStore == 'My Computer':
             return None
         
+        if dataStore == 'Sklearn Dataset':
+            dataInst = pythonObjectInstance(new_session,sklearnData['data'][modelData],sklearnData['module'])
+            df = pd.DataFrame(np.column_stack((dataInst['data'],dataInst['target'])),
+                            columns=[*dataInst['feature_names'],'target'])
+            trainTestSplit(df)
+            return st.session_state.data
+        
         if dataStore == 'Snowflake':
             df = session.table(tableName).to_pandas()
-            st.session_state.dataCols = df.columns
-            X = df.iloc[:,:-1]
-            y = df.iloc[:,-1:]
-            st.session_state.data = train_test_split(X, y, test_size=0.2, random_state = 42) # these should get parameterized
+            trainTestSplit(df)
             return st.session_state.data
+        
 
-        # Split dataset into training and test
+    
     
     def inputDataCheck(dataStore,modelData) -> bool:
         if dataStore == 'My Computer':
@@ -110,13 +137,6 @@ def main() -> None:
         else:
             return True
         
-    def dataPreprocessorInstance(session,className,moduleName):
-        dataPreprocessor = session.call("InstantiatePythonObject",str(className),'Data Preprocessor',str(moduleName))
-        return cp.loads(bytes.fromhex(dataPreprocessor))
-
-
-
-    
     
     
    #================== App frontend design =====================#
@@ -128,10 +148,12 @@ def main() -> None:
 
     # Display the input values
     predictionTask = st.selectbox("Prediction Task",["Classification","Regression"])
-    dataStore = st.selectbox("Data Location",['Snowflake','My Computer'])
+    dataStore = st.selectbox("Data Location",['Snowflake','My Computer','Sklearn Dataset'])
     if dataStore == 'Snowflake':
         modelData =  st.text_input("Table/View Name")
-    else:
+    if dataStore == 'Sklearn Dataset':
+        modelData = st.selectbox("Choose a Dataset",[i for i in sklearnData['data'].keys()])
+    if dataStore == 'My Computer':
        modelData = st.file_uploader('Upload Data')
     algoType = st.selectbox("Algorithm Type", [i for i in modelDict[predictionTask].keys()]) 
     
@@ -272,7 +294,7 @@ def main() -> None:
                 if transformX != 'None' and transformX != 'Log-Transform':
                     moduleName = dataPreprocessingDict[transformX]["moduleName"]
                     objectClass = dataPreprocessingDict[transformX]["class"]
-                    dataPreprocessor = dataPreprocessorInstance(new_session,objectClass,moduleName)
+                    dataPreprocessor = pythonObjectInstance(new_session,objectClass,moduleName)
                     scaledXtrain = dataPreprocessor.fit_transform(X_train)
                     scaledXtest = dataPreprocessor.fit_transform(X_test)
                     st.success(f"X_train Shape:{scaledXtrain.shape}, X_test Shape:{scaledXtest.shape}")
@@ -287,7 +309,7 @@ def main() -> None:
                 # if transformY != 'None' and transformY != 'Log-Transform':
                 #     moduleName = dataPreprocessingDict[transformY]["moduleName"]
                 #     objectClass = dataPreprocessingDict[transformY]["class"]
-                #     dataPreprocessor = dataPreprocessorInstance(new_session,objectClass,moduleName)
+                #     dataPreprocessor = pythonObjectInstance(new_session,objectClass,moduleName)
                 #     scaledYtrain = dataPreprocessor.fit_transform(y_train)
                 #     scaledYtest = dataPreprocessor.fit_transform(y_test)
                 #     st.success(scaledYtrain.shape)
@@ -305,7 +327,7 @@ def main() -> None:
 
 
     if predictModel == 'Yes' and 'Yes' not in [getParams,dataChanges,trainModel,saveModel]:
-        if not inputDataCheck(dataStore,modelData): # if dataset is not specified
+        if not inputDataCheck(dataStore,modelData) or dataStore == 'My Computer': # if dataset is not specified
             st.stop()
         if not hasattr(st.session_state,'data'):
             getTrainAndTestData(new_session,str(modelData),dataStore)

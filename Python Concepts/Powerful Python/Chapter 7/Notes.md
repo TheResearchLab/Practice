@@ -9,3 +9,6 @@
 - SFP is when the object type remains the same but want diff variations
 - FMP is where factory can dynamically choose different types
 --------- Alternative Constructors: The Simple Factory ---------
+- One object type with different variations 
+--------- Dynamic Type: The Factory Method Pattern ---------
+

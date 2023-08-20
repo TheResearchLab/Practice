@@ -11,4 +11,9 @@
 --------- Alternative Constructors: The Simple Factory ---------
 - One object type with different variations 
 --------- Dynamic Type: The Factory Method Pattern ---------
+- NA
+--------- The Observer Pattern ---------
+- observable has some event detection algorithm and the observer must know how to detect when an event occurred.
+- Observers subscribe to the observable ie. pub-sub
+--------- The Simple Observer ---------
 

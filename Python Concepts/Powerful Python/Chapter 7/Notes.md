@@ -16,4 +16,6 @@
 - observable has some event detection algorithm and the observer must know how to detect when an event occurred.
 - Observers subscribe to the observable ie. pub-sub
 --------- The Simple Observer ---------
+--------- Magic Method ---------
+- Negative modulos that are different signs from the denominator ie -7%3 will have denominator added to the numerator until the result is greater or equal than 0.
 

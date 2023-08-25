@@ -19,3 +19,6 @@
 --------- Magic Method ---------
 - Negative modulos that are different signs from the denominator ie -7%3 will have denominator added to the numerator until the result is greater or equal than 0.
 
+--------- shortcut functools.total_ordering ---------
+- can use total_ordering to infer most of the logical comparison methods.
+- This can negatively impact stack tracing and performance.

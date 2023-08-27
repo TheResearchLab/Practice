@@ -22,3 +22,6 @@
 --------- shortcut functools.total_ordering ---------
 - can use total_ordering to infer most of the logical comparison methods.
 - This can negatively impact stack tracing and performance.
+
+--------- Rebelliously Misusing Magic Methods ---------
+- 

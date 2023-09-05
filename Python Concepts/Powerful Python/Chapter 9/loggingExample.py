@@ -1,10 +1,12 @@
-import logging 
-logging.warning('This is a warning being logged')
-logging.error('This is a error being logged')
-logging.critical('this is a critical message')
-logging.info('this is info')
+import logging
 
-# Not everything got output
+logger = logging.getLogger()
 logging.basicConfig(level=logging.INFO)
-logging.info('This is informative')
-logging.error('Uh oh. Something went wrong')
+
+logger.info("Info")
+logger.error("error")
+logger.info("info")
+
+logging.basicConfig(
+    format = "Log level: %(levelname), msg: %(message)s")
+logger.warning("Collision imminent")

@@ -1,0 +1,3 @@
+---------- Configuring the basic interface ------
+- Python logging uses python 2 formattion %(paramName)s
+- it can be changed but may be too much effort.

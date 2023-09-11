@@ -6,3 +6,5 @@
 - pip freeze > requirements.txt
 - creates a snapshot of requirements
 - top folder in python project has venv folder containing requirements.txt
+
+

@@ -1,7 +1,6 @@
-from snowflake.snowpark import Session
 import streamlit as st
-import cloudpickle as cp
 from sklearn.model_selection import train_test_split
+import sklearn.metrics as metrics
 import xgboost
 import time as t
 import numpy as np
@@ -9,25 +8,6 @@ import pandas as pd
 
 email = ''
 schema = ''
-
-
-@st.experimental_singleton
-def createConnection():
-    connection_parameters = {
-        "account": "spectrumhealth-idea",
-        "user": f"{email}",
-        "authenticator": "externalbrowser",
-        "role": "SFK_PH_IDEA_DVLPR_U",
-        "warehouse": "PH_IDEA_M_WH",
-        "database": "PH_IDEA_PLAY",
-        "schema": f"{schema}"}
-
-    return Session.builder.configs(connection_parameters).create()
-
-
-new_session = createConnection()
-
-
 
 
 def main() -> None:
@@ -65,7 +45,7 @@ def main() -> None:
                          "Iris (Multi-Class Classification)":"load_iris",
                          "Diabetes (Regression)":"load_diabetes",
                          "Wine (Mult-Class Classification)":"load_wine",
-                         "Breast Cancer (Binary Classification)":"load_breast"
+                         "Breast Cancer (Binary Classification)":"load_breast_cancer"
                      } 
                    }
 
@@ -73,32 +53,41 @@ def main() -> None:
    #================== Model Instance Functions =====================#
 
     
+    #import module class
+    def importName(moduleName,className):
+        try:
+            module = __import__(moduleName, globals(),locals(),[className])
+        except ImportError:
+            return None
+        return vars(module)[className]
+    
+    
     # instantiate new ml model 
-    @st.experimental_singleton  
-    def modelInstance(_session,modelName,moduleName,hyperparams={}):
-        modelOutput = _session.call("InstantiatePythonObject",str(modelName),'Model',str(moduleName))
+    @st.cache_resource  
+    def modelInstance(modelName,moduleName,hyperparams={}):
+        modelOutput = importName(str(moduleName),str(modelName))
         if hyperparams == {}:
-            return cp.loads(bytes.fromhex(modelOutput))
+            return modelOutput()
         else:
-            return cp.loads(bytes.fromhex(modelOutput)).set_params(**hyperparams)
+            return modelOutput().set_params(**hyperparams)
             
 
     def modelTrain():
         if hasattr(st.session_state,'data'):    
-            X_train, X_test, y_train, y_test = st.session_state.data #Only Supports Snowflake data for now
+            X_train, X_test, y_train, y_test = st.session_state.data
             model.fit(X_train,y_train)
             return [model,X_test,y_test]
             
         else:
-            X_train, X_test, y_train, y_test = getTrainAndTestData(new_session,str(modelData),dataStore) #Only Supports Snowflake data for now
+            X_train, X_test, y_train, y_test = getTrainAndTestData(str(modelData),dataStore)
             model.fit(X_train,y_train)
             return [model,X_test,y_test]
    #================== Data Related Functions =====================#
 
     # Data processors help perform statistics based transformations
-    def pythonObjectInstance(session,className,moduleName):
-        pythonObjectInst = session.call("InstantiatePythonObject",str(className),'Other',str(moduleName))
-        return cp.loads(bytes.fromhex(pythonObjectInst))
+    def pythonObjectInstance(className,moduleName):
+        pythonObjectInst = importName(str(moduleName),str(className))
+        return pythonObjectInst()
     
     def trainTestSplit(dataframe) -> None:
         X = dataframe.iloc[:,:-1]
@@ -108,66 +97,81 @@ def main() -> None:
         return None
     
     
-    def getTrainAndTestData(session,tableName,dataStore) -> list:
+    def getTrainAndTestData(tableName,dataStore) -> list:
         if dataStore == 'My Computer':
-            return None
-        
-        if dataStore == 'Sklearn Dataset':
-            dataInst = pythonObjectInstance(new_session,sklearnData['data'][modelData],sklearnData['module'])
-            df = pd.DataFrame(np.column_stack((dataInst['data'],dataInst['target'])),
-                            columns=[*dataInst['feature_names'],'target'])
+            df = pd.read_csv(modelData)
             trainTestSplit(df)
+            st.session_state.feature_names = df.columns
             return st.session_state.data
         
-        if dataStore == 'Snowflake':
-            df = session.table(tableName).to_pandas()
+        if dataStore == 'Sklearn Dataset':
+            dataInst = pythonObjectInstance(sklearnData['data'][modelData],sklearnData['module'])
+            df = pd.DataFrame(np.column_stack((dataInst['data'],dataInst['target'])),
+                            columns=[*dataInst['feature_names'],'target'])
             trainTestSplit(df)
             return st.session_state.data
         
 
     
     
-    def inputDataCheck(dataStore,modelData) -> bool:
-        if dataStore == 'My Computer':
-            st.error("Self Uploads Are Currently Not Supported", icon='☹')
-            return False
-        if dataStore == 'Snowflake' and modelData == '':
-            st.error("Please Enter A Table To Build Your Model", icon='☹')
-            return False
-        else:
-            return True
+    def inputDataCheck(modelData,dataStore,algoType) -> None:
+        if not hasattr(st.session_state,"data"):
+            getTrainAndTestData(str(modelData),dataStore)
+            st.session_state.dataStore = dataStore 
+            st.session_state.modelData = modelData
+        if hasattr(st.session_state,"dataStore") and st.session_state.dataStore != dataStore:
+            getTrainAndTestData(str(modelData),dataStore)
+            st.session_state.dataStore = dataStore 
+            st.session_state.modelData = modelData
+        if hasattr(st.session_state,'modelData') and st.session_state.modelData != modelData:
+            getTrainAndTestData(str(modelData),dataStore)
+            st.session_state.dataStore = dataStore 
+            st.session_state.modelData = modelData
+        if not hasattr(st.session_state,'algoType') or st.session_state.algoType != algoType:
+            st.session_state.hyperparams = {}
+            model = modelInstance(str(algoType),str(modelDict[predictionTask][algoType]))
+            modelParamDict = model.get_params()
+        if bool(st.session_state.hyperparams):
+            hyperparams = st.session_state.hyperparams
+            model = modelInstance(str(algoType) ,str(modelDict[predictionTask][algoType]),hyperparams)
+            modelParamDict = model.get_params()
+        if not hasattr(st.session_state,'data'):
+            getTrainAndTestData(str(modelData),dataStore)
+        if hasattr(st.session_state,'hyperparams'):
+            hyperparams = st.session_state.hyperparams
+            model = modelInstance(str(algoType) ,str(modelDict[predictionTask][algoType]),hyperparams)
+        if not hasattr(st.session_state,'hyperparams') :
+            model = modelInstance(str(algoType) ,str(modelDict[predictionTask][algoType]))
+        
+        #return True
         
     
     
    #================== App frontend design =====================#
     
     
-    st.sidebar.success('© 2023 The Top Secret Data Science Club™')
+    st.sidebar.success('The Research Lab™')
 
-    st.header(':green[PH]-No-Code-ML')
+    st.header(':green[No]-Code-ML')
 
     # Display the input values
     predictionTask = st.selectbox("Prediction Task",["Classification","Regression"])
-    dataStore = st.selectbox("Data Location",['Snowflake','My Computer','Sklearn Dataset'])
-    if dataStore == 'Snowflake':
-        modelData =  st.text_input("Table/View Name")
+    dataStore = st.selectbox("Data Location",['My Computer','Sklearn Dataset'])
     if dataStore == 'Sklearn Dataset':
         modelData = st.selectbox("Choose a Dataset",[i for i in sklearnData['data'].keys()])
     if dataStore == 'My Computer':
-       modelData = st.file_uploader('Upload Data')
+        modelData = st.file_uploader('Upload Data as CSV')
     algoType = st.selectbox("Algorithm Type", [i for i in modelDict[predictionTask].keys()]) 
     
 
     # Create Buttons for Setting Model Parameters, Model Training, and Data Transformations 
-    paramsBtn,dataTransformBtn,trainBtn,predictBtn,saveBtn = st.columns([0.07,0.06,0.04,0.04,0.04],gap="small")
+    paramsBtn,dataTransformBtn,trainBtn,predictBtn = st.columns([0.07,0.06,0.04,0.04],gap="small")
     with paramsBtn:
-        getParams = st.selectbox('Manually Set Params',['No','Yes'],index=0)
+        getParams = st.selectbox('Set Model Params',['No','Yes'],index=0)
     with dataTransformBtn:
         dataChanges = st.selectbox('Transform Data',['No','Yes'],index=0)
     with trainBtn:
         trainModel = st.selectbox('Train',['No','Yes'],index=0)
-    with saveBtn:
-        saveModel = st.selectbox('Save',['No','Yes'],index=0)
     with predictBtn:
         predictModel = st.selectbox('Predict',['No','Yes'],index=0)
 
@@ -225,16 +229,16 @@ def main() -> None:
 
 
     # Logic for getting model parameters and setting (Custom Form)
-    if getParams == 'Yes' and 'Yes' not in [dataChanges,trainModel,saveModel,predictModel]:
+    if getParams == 'Yes' and 'Yes' not in [dataChanges,trainModel,predictModel]:
 
         with placeholder.form("hyperparam_form"):
             if not hasattr(st.session_state,'algoType') or st.session_state.algoType != algoType:
                 st.session_state.hyperparams = {}
-                model = modelInstance(new_session,str(algoType) ,str(modelDict[predictionTask][algoType]))
+                model = modelInstance(str(algoType),str(modelDict[predictionTask][algoType]))
                 modelParamDict = model.get_params()
-            elif bool(st.session_state.hyperparams):
+            if bool(st.session_state.hyperparams):
                 hyperparams = st.session_state.hyperparams
-                model = modelInstance(new_session,str(algoType) ,str(modelDict[predictionTask][algoType]),hyperparams)
+                model = modelInstance(str(algoType) ,str(modelDict[predictionTask][algoType]),hyperparams)
                 modelParamDict = model.get_params()
         
             st.write(f" :green[{algoType}] Hyperparameters")
@@ -253,20 +257,26 @@ def main() -> None:
 
 
     # Logic for training a model
-    if trainModel == 'Yes' and 'Yes' not in [getParams,dataChanges,saveModel,predictModel]:
-        if not inputDataCheck(dataStore,modelData):
-            return None
-        elif hasattr(st.session_state,'hyperparams'):
+    if trainModel == 'Yes' and 'Yes' not in [getParams,dataChanges,predictModel]:
+        #if not inputDataCheck(dataStore,modelData):
+        #    return None
+        if hasattr(st.session_state,'hyperparams'):
             hyperparams = st.session_state.hyperparams
-            model = modelInstance(new_session,str(algoType) ,str(modelDict[predictionTask][algoType]),hyperparams)
+            model = modelInstance(str(algoType) ,str(modelDict[predictionTask][algoType]),hyperparams)
         elif not hasattr(st.session_state,'hyperparams') :
-            model = modelInstance(new_session,str(algoType) ,str(modelDict[predictionTask][algoType]))
+            model = modelInstance(str(algoType) ,str(modelDict[predictionTask][algoType]))
+        #inputDataCheck(modelData,dataStore,algoType)
 
         trainedModel,X_test,y_test = modelTrain()
-        st.session_state.model = cp.dumps(trainedModel).hex()
+        st.session_state.model = trainedModel
 
         st.title("Model Accuracy")
-        st.text(trainedModel.score(X_test,y_test))
+        if predictionTask == 'Classification':
+            report = metrics.classification_report(trainedModel.predict(X_test),y_test,output_dict=True)
+            st.table(pd.DataFrame(report).T)
+            
+        else:
+            st.text(trainedModel.score(X_test,y_test))
 
 
 
@@ -274,16 +284,33 @@ def main() -> None:
     dataPreprocessingDict = {
         "StandardScaler": {"class":"StandardScaler","moduleName":"sklearn.preprocessing"},
         "MinMaxScaler": {"class":"MinMaxScaler","moduleName":"sklearn.preprocessing"},
-        #"OneHotEncoder": {"module":"OneHotEncoder","package":"sklearn.preprocessing"},
     }
 
     
-    if dataChanges == 'Yes' and inputDataCheck(dataStore,modelData) and 'Yes' not in [getParams,trainModel,saveModel,predictModel]:
+    if dataChanges == 'Yes' and 'Yes' not in [getParams,trainModel,predictModel]:
             if not hasattr(st.session_state,"data"):
-                getTrainAndTestData(new_session,str(modelData),dataStore)
+                getTrainAndTestData(str(modelData),dataStore)
+                st.session_state.dataStore = dataStore 
+                st.session_state.modelData = modelData
+            if hasattr(st.session_state,"dataStore") and st.session_state.dataStore != dataStore:
+                getTrainAndTestData(str(modelData),dataStore)
+                st.session_state.dataStore = dataStore 
+                st.session_state.modelData = modelData
+            if hasattr(st.session_state,'modelData') and st.session_state.modelData != modelData:
+                getTrainAndTestData(str(modelData),dataStore)
+                st.session_state.dataStore = dataStore 
+                st.session_state.modelData = modelData
+            #inputDataCheck(modelData,dataStore,algoType)
+
             
             X_train,X_test,y_train,y_test = st.session_state.data
-            
+
+            try:
+                st.table(X_train.describe())
+            except:
+                st.table(pd.DataFrame(X_train,columns=st.session_state.feature_names[0:-1]).describe())
+
+
             dataTransformationForm = st.empty()
             with dataTransformationForm.form("transformData"):
                 transformX = st.selectbox("Independent Variable Transformations",['None','StandardScaler','MinMaxScaler','Log-Transform'])
@@ -294,48 +321,44 @@ def main() -> None:
                 if transformX != 'None' and transformX != 'Log-Transform':
                     moduleName = dataPreprocessingDict[transformX]["moduleName"]
                     objectClass = dataPreprocessingDict[transformX]["class"]
-                    dataPreprocessor = pythonObjectInstance(new_session,objectClass,moduleName)
-                    scaledXtrain = dataPreprocessor.fit_transform(X_train)
-                    scaledXtest = dataPreprocessor.fit_transform(X_test)
-                    st.success(f"X_train Shape:{scaledXtrain.shape}, X_test Shape:{scaledXtest.shape}")
+                    dataPreprocessor = pythonObjectInstance(objectClass,moduleName)
+                    X_train = dataPreprocessor.fit_transform(X_train)
+                    X_test = dataPreprocessor.fit_transform(X_test)
+                    st.success(f"X_train Shape:{X_train.shape}, X_test Shape:{X_test.shape}")
 
                 
                 if transformX == 'Log-Transform':
-                    transformedXtrain = np.log(X_train)
-                    transformedXtest = np.log(X_test)
-                    st.success(f"X_train Shape:{transformedXtrain.shape}, X_test Shape:{transformedXtest.shape}")
+                    X_train = np.log(X_train)
+                    X_test = np.log(X_test)
+                    st.success(f"X_train Shape:{X_train.shape}, X_test Shape:{X_test.shape}")
 
 
-                # if transformY != 'None' and transformY != 'Log-Transform':
-                #     moduleName = dataPreprocessingDict[transformY]["moduleName"]
-                #     objectClass = dataPreprocessingDict[transformY]["class"]
-                #     dataPreprocessor = pythonObjectInstance(new_session,objectClass,moduleName)
-                #     scaledYtrain = dataPreprocessor.fit_transform(y_train)
-                #     scaledYtest = dataPreprocessor.fit_transform(y_test)
-                #     st.success(scaledYtrain.shape)
                 
                 if transformY == 'Log-Transform':
-                    transformedYtrain = np.log(y_train)
-                    transformedYtest = np.log(y_test)
-                    st.success(f"Y_train Shape:{transformedYtrain.shape}, Y_test Shape:{transformedYtest.shape}")
-
-
+                    y_train = np.log(y_train)
+                    y_test = np.log(y_test)
+                    st.success(f"Y_train Shape:{y_train.shape}, Y_test Shape:{y_test.shape}")
                 st.session_state.data = [X_train,X_test,y_train,y_test]
 
                 dataTransformationForm.empty()
 
 
 
-    if predictModel == 'Yes' and 'Yes' not in [getParams,dataChanges,trainModel,saveModel]:
-        if not inputDataCheck(dataStore,modelData) or dataStore == 'My Computer': # if dataset is not specified
-            st.stop()
+    if predictModel == 'Yes' and 'Yes' not in [getParams,dataChanges,trainModel]:
         if not hasattr(st.session_state,'data'):
-            getTrainAndTestData(new_session,str(modelData),dataStore)
+            getTrainAndTestData(str(modelData),dataStore)
         elif hasattr(st.session_state,'hyperparams'):
             hyperparams = st.session_state.hyperparams
-            model = modelInstance(new_session,str(algoType) ,str(modelDict[predictionTask][algoType]),hyperparams)
+            model = modelInstance(str(algoType) ,str(modelDict[predictionTask][algoType]),hyperparams)
         elif not hasattr(st.session_state,'hyperparams') :
-            model = modelInstance(new_session,str(algoType) ,str(modelDict[predictionTask][algoType]))
+            model = modelInstance(str(algoType) ,str(modelDict[predictionTask][algoType]))
+        if hasattr(st.session_state,'modelData') and st.session_state.modelData != modelData:
+            getTrainAndTestData(str(modelData),dataStore)
+            st.session_state.dataStore = dataStore 
+            st.session_state.modelData = modelData
+        
+
+
         predictionForm = st.empty()
         preDict = {key:'' for key in st.session_state.dataCols[0:-1]}
 
@@ -353,24 +376,7 @@ def main() -> None:
           
 
 
-    if saveModel == 'Yes' and 'Yes' not in [getParams,dataChanges,trainModel,predictModel]:
-        saveModelForm = st.empty()
-        with saveModelForm.form('save_here'):
-            # File or database
-            locationType = st.selectbox('Save Method',['Snowflake Table'])
-            locationName = st.text_input('Save Model As','')
-            submitted = st.form_submit_button('submit')
-        
-        if submitted:
-            data = pd.DataFrame({"Model":[st.session_state.model]})
-            snowpark_df = new_session.write_pandas(data, "saved_models", auto_create_table=True, table_type="temporary")
-            snowpark_df.write.mode("append").save_as_table("saved_models")
-
-
-
-            saveModelForm.empty()
-            st.success('submitted')
-
+    
     return None
 
 

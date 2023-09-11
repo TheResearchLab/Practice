@@ -14,7 +14,7 @@ def main() -> None:
 
     # Sklearn packages/module metadata
 
-    modelDict = { "Classification":{
+    model_selection_dict = { "Classification":{
             "LogisticRegression":"sklearn.linear_model",
             "XGBClassifier":"xgboost.sklearn",
             "SVC":"sklearn.svm",
@@ -40,7 +40,7 @@ def main() -> None:
             }
     } 
 
-    sklearnData = {"module":"sklearn.datasets",
+    sklearn_data_dict = {"module":"sklearn.datasets",
                      "data":{
                          "Iris (Multi-Class Classification)":"load_iris",
                          "Diabetes (Regression)":"load_diabetes",
@@ -50,102 +50,82 @@ def main() -> None:
                    }
 
 
+
+   #================== General Use Functions =====================#
+
+    #import module class
+    def import_class(module_name,class_name):
+        try:
+            module = __import__(module_name, globals(),locals(),[class_name])
+        except ImportError:
+            return None
+        return vars(module)[class_name]
+
+    
+    def instantiate_obj(class_name,module_name):
+        object_instance = import_class(str(module_name),str(class_name))
+        return object_instance()
+    
+
+
    #================== Model Instance Functions =====================#
 
     
-    #import module class
-    def importName(moduleName,className):
-        try:
-            module = __import__(moduleName, globals(),locals(),[className])
-        except ImportError:
-            return None
-        return vars(module)[className]
-    
-    
     # instantiate new ml model 
     @st.cache_resource  
-    def modelInstance(modelName,moduleName,hyperparams={}):
-        modelOutput = importName(str(moduleName),str(modelName))
+    def model_instance(algorithm_name,module_name,hyperparams={}):
+        #check if hyperparams already exists
+        if hasattr(st.session_state,"hyperparams"):
+            hyperparams = st.session_state.hyperparams
+
+        model = import_class(str(module_name),str(algorithm_name))
         if hyperparams == {}:
-            return modelOutput()
+            return model()
         else:
-            return modelOutput().set_params(**hyperparams)
+            return model().set_params(**hyperparams)
             
 
-    def modelTrain():
+    def train_model(data_key,data_source,model):
+        
         if hasattr(st.session_state,'data'):    
             X_train, X_test, y_train, y_test = st.session_state.data
             model.fit(X_train,y_train)
             return [model,X_test,y_test]
             
         else:
-            X_train, X_test, y_train, y_test = getTrainAndTestData(str(modelData),dataStore)
+            X_train, X_test, y_train, y_test = train_test_split(str(data_key),data_source) #change function name
             model.fit(X_train,y_train)
             return [model,X_test,y_test]
+   
    #================== Data Related Functions =====================#
 
-    # Data processors help perform statistics based transformations
-    def pythonObjectInstance(className,moduleName):
-        pythonObjectInst = importName(str(moduleName),str(className))
-        return pythonObjectInst()
-    
-    def trainTestSplit(dataframe) -> None:
-        X = dataframe.iloc[:,:-1]
-        y = dataframe.iloc[:,-1:]
-        st.session_state.data = train_test_split(X, y, test_size=0.2, random_state = 42) #parameterize in future
-        st.session_state.dataCols = dataframe.columns
-        return None
     
     
-    def getTrainAndTestData(tableName,dataStore) -> list:
-        if dataStore == 'My Computer':
-            df = pd.read_csv(modelData)
-            trainTestSplit(df)
+    def train_test_split(tableName,data_source) -> list:
+        
+        
+        def split_data(dataframe) -> None:
+            X = dataframe.iloc[:,:-1]
+            y = dataframe.iloc[:,-1:]
+            st.session_state.data = train_test_split(X, y, test_size=0.2, random_state = 42) 
+            st.session_state.dataCols = dataframe.columns
+            return None
+
+
+        if data_source == 'My Computer':
+            df = pd.read_csv(data_key)
+            split_data(df)
             st.session_state.feature_names = df.columns
             return st.session_state.data
         
-        if dataStore == 'Sklearn Dataset':
-            dataInst = pythonObjectInstance(sklearnData['data'][modelData],sklearnData['module'])
+        if data_source == 'Sklearn Dataset':
+            dataInst = instantiate_obj(sklearn_data_dict['data'][data_key],sklearn_data_dict['module'])
             df = pd.DataFrame(np.column_stack((dataInst['data'],dataInst['target'])),
                             columns=[*dataInst['feature_names'],'target'])
-            trainTestSplit(df)
+            split_data(df)
             return st.session_state.data
         
-
-    
-    
-    def inputDataCheck(modelData,dataStore,algoType) -> None:
-        if not hasattr(st.session_state,"data"):
-            getTrainAndTestData(str(modelData),dataStore)
-            st.session_state.dataStore = dataStore 
-            st.session_state.modelData = modelData
-        if hasattr(st.session_state,"dataStore") and st.session_state.dataStore != dataStore:
-            getTrainAndTestData(str(modelData),dataStore)
-            st.session_state.dataStore = dataStore 
-            st.session_state.modelData = modelData
-        if hasattr(st.session_state,'modelData') and st.session_state.modelData != modelData:
-            getTrainAndTestData(str(modelData),dataStore)
-            st.session_state.dataStore = dataStore 
-            st.session_state.modelData = modelData
-        if not hasattr(st.session_state,'algoType') or st.session_state.algoType != algoType:
-            st.session_state.hyperparams = {}
-            model = modelInstance(str(algoType),str(modelDict[predictionTask][algoType]))
-            modelParamDict = model.get_params()
-        if bool(st.session_state.hyperparams):
-            hyperparams = st.session_state.hyperparams
-            model = modelInstance(str(algoType) ,str(modelDict[predictionTask][algoType]),hyperparams)
-            modelParamDict = model.get_params()
-        if not hasattr(st.session_state,'data'):
-            getTrainAndTestData(str(modelData),dataStore)
-        if hasattr(st.session_state,'hyperparams'):
-            hyperparams = st.session_state.hyperparams
-            model = modelInstance(str(algoType) ,str(modelDict[predictionTask][algoType]),hyperparams)
-        if not hasattr(st.session_state,'hyperparams') :
-            model = modelInstance(str(algoType) ,str(modelDict[predictionTask][algoType]))
         
-        #return True
-        
-    
     
    #================== App frontend design =====================#
     
@@ -155,31 +135,31 @@ def main() -> None:
     st.header(':green[No]-Code-ML')
 
     # Display the input values
-    predictionTask = st.selectbox("Prediction Task",["Classification","Regression"])
-    dataStore = st.selectbox("Data Location",['My Computer','Sklearn Dataset'])
-    if dataStore == 'Sklearn Dataset':
-        modelData = st.selectbox("Choose a Dataset",[i for i in sklearnData['data'].keys()])
-    if dataStore == 'My Computer':
-        modelData = st.file_uploader('Upload Data as CSV')
-    algoType = st.selectbox("Algorithm Type", [i for i in modelDict[predictionTask].keys()]) 
+    prediction_task = st.selectbox("Prediction Task",["Classification","Regression"])
+    data_source = st.selectbox("Data Location",['My Computer','Sklearn Dataset'])
+    if data_source == 'Sklearn Dataset':
+        data_key = st.selectbox("Choose a Dataset",[i for i in sklearn_data_dict['data'].keys()])
+    if data_source == 'My Computer':
+        data_key = st.file_uploader('Upload Data as CSV')
+    algorithm_name = st.selectbox("Algorithm Type", [i for i in model_selection_dict[prediction_task].keys()]) 
     
 
     # Create Buttons for Setting Model Parameters, Model Training, and Data Transformations 
     paramsBtn,dataTransformBtn,trainBtn,predictBtn = st.columns([0.07,0.06,0.04,0.04],gap="small")
     with paramsBtn:
-        getParams = st.selectbox('Set Model Params',['No','Yes'],index=0)
+        params_bool = st.selectbox('Set Model Params',['No','Yes'],index=0)
     with dataTransformBtn:
-        dataChanges = st.selectbox('Transform Data',['No','Yes'],index=0)
+        transform_data_bool = st.selectbox('Transform Data',['No','Yes'],index=0)
     with trainBtn:
-        trainModel = st.selectbox('Train',['No','Yes'],index=0)
+        train_model_bool = st.selectbox('Train',['No','Yes'],index=0)
     with predictBtn:
-        predictModel = st.selectbox('Predict',['No','Yes'],index=0)
+        predict_bool = st.selectbox('Predict',['No','Yes'],index=0)
 
     
     
-    def updateHyperparameters(modelParamDict,algoType) -> None:
+    def updateHyperparameters(modelParamDict,algorithm_name) -> None:
         st.session_state.hyperparams.update(modelParamDict)
-        st.session_state.algoType = algoType
+        st.session_state.algorithm_name = algorithm_name
         st.text(st.session_state.hyperparams)
         st.success('Updated Hyperparameters')
         
@@ -229,19 +209,19 @@ def main() -> None:
 
 
     # Logic for getting model parameters and setting (Custom Form)
-    if getParams == 'Yes' and 'Yes' not in [dataChanges,trainModel,predictModel]:
+    if params_bool == 'Yes' and 'Yes' not in [transform_data_bool,train_model_bool,predict_bool]:
 
         with placeholder.form("hyperparam_form"):
-            if not hasattr(st.session_state,'algoType') or st.session_state.algoType != algoType:
+            if not hasattr(st.session_state,'algorithm_name') or st.session_state.algorithm_name != algorithm_name:
                 st.session_state.hyperparams = {}
-                model = modelInstance(str(algoType),str(modelDict[predictionTask][algoType]))
+                model = model_instance(str(algorithm_name),str(model_selection_dict[prediction_task][algorithm_name]))
                 modelParamDict = model.get_params()
             if bool(st.session_state.hyperparams):
                 hyperparams = st.session_state.hyperparams
-                model = modelInstance(str(algoType) ,str(modelDict[predictionTask][algoType]),hyperparams)
+                model = model_instance(str(algorithm_name) ,str(model_selection_dict[prediction_task][algorithm_name]),hyperparams)
                 modelParamDict = model.get_params()
         
-            st.write(f" :green[{algoType}] Hyperparameters")
+            st.write(f" :green[{algorithm_name}] Hyperparameters")
             for key,value in modelParamDict.items():
                 modelParamDict[key] = st.text_input(f"{key}",modelParamDict.get(key,value))
                 modelParamDict[key] = floatConverter(modelParamDict[key])
@@ -251,56 +231,50 @@ def main() -> None:
             submitted = st.form_submit_button("Update Hyperparameters")
 
             if submitted:
-                updateHyperparameters(modelParamDict,algoType)
+                updateHyperparameters(modelParamDict,algorithm_name)
                 placeholder.empty()
         
 
 
     # Logic for training a model
-    if trainModel == 'Yes' and 'Yes' not in [getParams,dataChanges,predictModel]:
-        #if not inputDataCheck(dataStore,modelData):
-        #    return None
-        if hasattr(st.session_state,'hyperparams'):
-            hyperparams = st.session_state.hyperparams
-            model = modelInstance(str(algoType) ,str(modelDict[predictionTask][algoType]),hyperparams)
-        elif not hasattr(st.session_state,'hyperparams') :
-            model = modelInstance(str(algoType) ,str(modelDict[predictionTask][algoType]))
-        #inputDataCheck(modelData,dataStore,algoType)
+    if train_model_bool == 'Yes' and 'Yes' not in [params_bool,transform_data_bool,predict_bool]:
 
-        trainedModel,X_test,y_test = modelTrain()
-        st.session_state.model = trainedModel
+        model = model_instance(str(algorithm_name) ,str(model_selection_dict[prediction_task][algorithm_name]))
+
+        trained_model,X_test,y_test = train_model(data_key,data_source,model)
+        st.session_state.model = trained_model
 
         st.title("Model Accuracy")
-        if predictionTask == 'Classification':
-            report = metrics.classification_report(trainedModel.predict(X_test),y_test,output_dict=True)
+        if prediction_task == 'Classification':
+            report = metrics.classification_report(trained_model.predict(X_test),y_test,output_dict=True)
             st.table(pd.DataFrame(report).T)
             
         else:
-            st.text(trainedModel.score(X_test,y_test))
+            st.text(trained_model.score(X_test,y_test))
 
 
 
     # Data Transformations
     dataPreprocessingDict = {
-        "StandardScaler": {"class":"StandardScaler","moduleName":"sklearn.preprocessing"},
-        "MinMaxScaler": {"class":"MinMaxScaler","moduleName":"sklearn.preprocessing"},
+        "StandardScaler": {"class":"StandardScaler","module_name":"sklearn.preprocessing"},
+        "MinMaxScaler": {"class":"MinMaxScaler","module_name":"sklearn.preprocessing"},
     }
 
     
-    if dataChanges == 'Yes' and 'Yes' not in [getParams,trainModel,predictModel]:
+    if transform_data_bool == 'Yes' and 'Yes' not in [params_bool,train_model_bool,predict_bool]:
             if not hasattr(st.session_state,"data"):
-                getTrainAndTestData(str(modelData),dataStore)
-                st.session_state.dataStore = dataStore 
-                st.session_state.modelData = modelData
-            if hasattr(st.session_state,"dataStore") and st.session_state.dataStore != dataStore:
-                getTrainAndTestData(str(modelData),dataStore)
-                st.session_state.dataStore = dataStore 
-                st.session_state.modelData = modelData
-            if hasattr(st.session_state,'modelData') and st.session_state.modelData != modelData:
-                getTrainAndTestData(str(modelData),dataStore)
-                st.session_state.dataStore = dataStore 
-                st.session_state.modelData = modelData
-            #inputDataCheck(modelData,dataStore,algoType)
+                train_test_split(str(data_key),data_source)
+                st.session_state.data_source = data_source 
+                st.session_state.data_key = data_key
+            if hasattr(st.session_state,"data_source") and st.session_state.data_source != data_source:
+                train_test_split(str(data_key),data_source)
+                st.session_state.data_source = data_source 
+                st.session_state.data_key = data_key
+            if hasattr(st.session_state,'data_key') and st.session_state.data_key != data_key:
+                train_test_split(str(data_key),data_source)
+                st.session_state.data_source = data_source 
+                st.session_state.data_key = data_key
+            #inputDataCheck(data_key,data_source,algorithm_name)
 
             
             X_train,X_test,y_train,y_test = st.session_state.data
@@ -319,9 +293,9 @@ def main() -> None:
             
             if submitted:
                 if transformX != 'None' and transformX != 'Log-Transform':
-                    moduleName = dataPreprocessingDict[transformX]["moduleName"]
+                    module_name = dataPreprocessingDict[transformX]["module_name"]
                     objectClass = dataPreprocessingDict[transformX]["class"]
-                    dataPreprocessor = pythonObjectInstance(objectClass,moduleName)
+                    dataPreprocessor = instantiate_obj(objectClass,module_name)
                     X_train = dataPreprocessor.fit_transform(X_train)
                     X_test = dataPreprocessor.fit_transform(X_test)
                     st.success(f"X_train Shape:{X_train.shape}, X_test Shape:{X_test.shape}")
@@ -344,18 +318,18 @@ def main() -> None:
 
 
 
-    if predictModel == 'Yes' and 'Yes' not in [getParams,dataChanges,trainModel]:
+    if predict_bool == 'Yes' and 'Yes' not in [params_bool,transform_data_bool,train_model_bool]:
         if not hasattr(st.session_state,'data'):
-            getTrainAndTestData(str(modelData),dataStore)
+            train_test_split(str(data_key),data_source)
         elif hasattr(st.session_state,'hyperparams'):
             hyperparams = st.session_state.hyperparams
-            model = modelInstance(str(algoType) ,str(modelDict[predictionTask][algoType]),hyperparams)
+            model = model_instance(str(algorithm_name) ,str(model_selection_dict[prediction_task][algorithm_name]),hyperparams)
         elif not hasattr(st.session_state,'hyperparams') :
-            model = modelInstance(str(algoType) ,str(modelDict[predictionTask][algoType]))
-        if hasattr(st.session_state,'modelData') and st.session_state.modelData != modelData:
-            getTrainAndTestData(str(modelData),dataStore)
-            st.session_state.dataStore = dataStore 
-            st.session_state.modelData = modelData
+            model = model_instance(str(algorithm_name) ,str(model_selection_dict[prediction_task][algorithm_name]))
+        if hasattr(st.session_state,'data_key') and st.session_state.data_key != data_key:
+            train_test_split(str(data_key),data_source)
+            st.session_state.data_source = data_source 
+            st.session_state.data_key = data_key
         
 
 
@@ -368,10 +342,10 @@ def main() -> None:
             submitted = st.form_submit_button("submit")
             
         if submitted:
-          trainedModel,X_test,y_test = modelTrain()
+          trained_model,X_test,y_test = train_model(data_key,data_source,model)
           sampleData = np.array([int(feature) for key,feature in preDict.items()])
           sampleData = sampleData.reshape(1,len(sampleData))
-          st.success(f'{trainedModel.predict(sampleData)}')
+          st.success(f'{trained_model.predict(sampleData)}')
           predictionForm.empty() 
           
 

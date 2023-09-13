@@ -47,7 +47,7 @@ def main() -> None:
                      } 
                    }
 
-     
+     # Data Transformations Dict
     data_preprocess_dict = {
         "StandardScaler": {"class":"StandardScaler","module_name":"sklearn.preprocessing"},
         "MinMaxScaler": {"class":"MinMaxScaler","module_name":"sklearn.preprocessing"},
@@ -69,7 +69,39 @@ def main() -> None:
         object_instance = import_class(str(module_name),str(class_name))
         return object_instance()
     
-    #def input_data_check():
+    def update_data():
+        get_train_test(str(data_key),data_source)
+        st.session_state.data_source = data_source 
+        st.session_state.data_key = data_key
+
+    def check_cache_data():
+        
+        # if there is no data then load data
+        if not hasattr(st.session_state,'data'):
+            update_data()
+
+        # if the dataset changed then change the dataset
+        if hasattr(st.session_state,'data_key') and st.session_state.data_key != data_key:
+            update_data()
+
+        if hasattr(st.session_state,"data_source") and st.session_state.data_source != data_source:
+            update_data()
+
+    def check_cache_hyperparams():
+        module_name = model_selection_dict[prediction_task][algorithm_name]
+        
+        if hasattr(st.session_state,'hyperparams'):
+            hyperparams = st.session_state.hyperparams
+            model =  model_instance(str(algorithm_name) ,str(module_name)) #can I call set params on this?
+            model_param_dict = st.session_state.hyperparams # 
+            model = model.set_params(**model_param_dict)
+            return model, model_param_dict
+        else:
+            model = model_instance(str(algorithm_name) ,str(module_name))
+            model_param_dict = model.get_params()
+            return model, model_param_dict
+            
+        
 
 
    #================== Model Instance Functions =====================#
@@ -77,7 +109,8 @@ def main() -> None:
     
     # instantiate new ml model 
     @st.cache_resource  
-    def model_instance(algorithm_name,module_name): 
+    def model_instance(algorithm_name,module_name):
+
         model = import_class(str(module_name),str(algorithm_name))
         return model()
             
@@ -90,7 +123,7 @@ def main() -> None:
             return [model,X_test,y_test]
             
         else:
-            X_train, X_test, y_train, y_test = train_test_split(str(data_key),data_source) #change function name
+            X_train, X_test, y_train, y_test = get_train_test(str(data_key),data_source) #change function name
             model.fit(X_train,y_train)
             return [model,X_test,y_test]
 
@@ -100,14 +133,14 @@ def main() -> None:
 
     
     
-    def train_test_split(tableName,data_source) -> list:
+    def get_train_test(tableName,data_source) -> list:
         
         
         def split_data(dataframe) -> None:
             X = dataframe.iloc[:,:-1]
             y = dataframe.iloc[:,-1:]
             st.session_state.data = train_test_split(X, y, test_size=0.2, random_state = 42) 
-            st.session_state.dataCols = dataframe.columns
+            st.session_state.data_cols = dataframe.columns
             return None
 
 
@@ -159,81 +192,38 @@ def main() -> None:
 
     
         
-
-    
-
-   #================== Data Type Converter functions =====================#
-
-
-    def bool_convert(value):
-        bool_dict = {"True":True,"False":False}
-        if value in ('True','False'):
-            return bool_dict[value]
-        else:
-            return value
-    
-    def int_convert(value):
-        try:
-            value = int(value)
-            return value
-        except ValueError:
-            try:
-                if str(float(value)).endswith(".0"):
-                    value = int(float(value))
-                    return value   
-            except ValueError:
-                return value
-            
-    def float_convert(value):
-        try:
-            value = float(value)
-            return value 
-        except:
-            return value
-
-    def none_type_convert(value):
-        if value == 'None':
-            return None
-        else:
-            return value 
     
 
     #Dictionary to hold new parameters
     model_param_dict = {}
-    placeholder = st.empty() 
+    params_form = st.empty() 
 
     # Logic for getting model parameters and setting (Custom Form)
     if params_bool == 'Yes' and 'Yes' not in [transform_data_bool,train_model_bool,predict_bool]:
 
-        with placeholder.form("hyperparam_form"):
-            module_name = model_selection_dict[prediction_task][algorithm_name]
-            model = model_instance(str(algorithm_name) ,str(model_selection_dict[prediction_task][algorithm_name]))
-            model_param_dict = model.get_params() if not hasattr(st.session_state,"hyperparams") else st.session_state.hyperparams
-
-            model = model.set_params(**model_param_dict)
+        with params_form.form("hyperparam_form"):
+            
+            _,model_param_dict = check_cache_hyperparams()
             
         
             st.write(f" :green[{algorithm_name}] Hyperparameters")
             for key,value in model_param_dict.items():
-                model_param_dict[key] = st.text_input(f"{key}",model_param_dict.get(key,value))
-                model_param_dict[key] = float_convert(model_param_dict[key])
-                model_param_dict[key] = int_convert(model_param_dict[key])
-                model_param_dict[key] = bool_convert(model_param_dict[key])
-                model_param_dict[key] = none_type_convert(model_param_dict[key])
+                original_type = 'NoneType' if isinstance(model_param_dict[key],type(None)) else type(model_param_dict[key])
+                model_param_dict[key] = None if original_type == 'NoneType' else original_type(st.text_input(f"{key}",model_param_dict.get(key,value)))
             submitted = st.form_submit_button("Update Hyperparameters")
 
             if submitted:
                 st.session_state.hyperparams = model_param_dict
                 st.session_state.algorithm_name = algorithm_name
-                placeholder.empty()
+                params_form.empty()
                 
         
 
 
     # Logic for training a model
     if train_model_bool == 'Yes' and 'Yes' not in [params_bool,transform_data_bool,predict_bool]:
-
-        model = model_instance(str(algorithm_name) ,str(model_selection_dict[prediction_task][algorithm_name]))
+        check_cache_data()
+        model, _ = check_cache_hyperparams()
         trained_model,X_test,y_test = train_model(data_key,data_source,model)
         st.session_state.model = trained_model
 
@@ -248,21 +238,9 @@ def main() -> None:
 
     
     if transform_data_bool == 'Yes' and 'Yes' not in [params_bool,train_model_bool,predict_bool]:
-            if not hasattr(st.session_state,"data"):
-                train_test_split(str(data_key),data_source)
-                st.session_state.data_source = data_source 
-                st.session_state.data_key = data_key
-            if hasattr(st.session_state,"data_source") and st.session_state.data_source != data_source:
-                train_test_split(str(data_key),data_source)
-                st.session_state.data_source = data_source 
-                st.session_state.data_key = data_key
-            if hasattr(st.session_state,'data_key') and st.session_state.data_key != data_key:
-                train_test_split(str(data_key),data_source)
-                st.session_state.data_source = data_source 
-                st.session_state.data_key = data_key
-            
 
-            
+            check_cache_data()
+
             X_train,X_test,y_train,y_test = st.session_state.data
 
             try:
@@ -271,58 +249,49 @@ def main() -> None:
                 st.table(pd.DataFrame(X_train,columns=st.session_state.feature_names[0:-1]).describe())
 
 
-            dataTransformationForm = st.empty()
-            with dataTransformationForm.form("transformData"):
-                transformX = st.selectbox("Independent Variable Transformations",['None','StandardScaler','MinMaxScaler','Log-Transform'])
-                transformY = st.selectbox("Dependent Variable Transformations",['None','Log-Transform'])
+            data_transformation_form = st.empty()
+            with data_transformation_form.form("transformData"):
+                transform_x = st.selectbox("Independent Variable Transformations",['None','StandardScaler','MinMaxScaler','Log-Transform'])
+                transform_y = st.selectbox("Dependent Variable Transformations",['None','Log-Transform'])
                 submitted = st.form_submit_button("submit")
             
             if submitted:
-                if transformX != 'None' and transformX != 'Log-Transform':
-                    module_name = data_preprocess_dict[transformX]["module_name"]
-                    objectClass = data_preprocess_dict[transformX]["class"]
-                    data_preprocessor = instantiate_obj(objectClass,module_name)
+                if transform_x != 'None' and transform_x != 'Log-Transform':
+                    module_name = data_preprocess_dict[transform_x]["module_name"]
+                    object_class = data_preprocess_dict[transform_x]["class"]
+                    data_preprocessor = instantiate_obj(object_class,module_name)
                     X_train = data_preprocessor.fit_transform(X_train)
                     X_test = data_preprocessor.fit_transform(X_test)
                     st.success(f"X_train Shape:{X_train.shape}, X_test Shape:{X_test.shape}")
 
                 
-                if transformX == 'Log-Transform':
+                if transform_x == 'Log-Transform':
                     X_train = np.log(X_train)
                     X_test = np.log(X_test)
                     st.success(f"X_train Shape:{X_train.shape}, X_test Shape:{X_test.shape}")
 
 
                 
-                if transformY == 'Log-Transform':
+                if transform_y == 'Log-Transform':
                     y_train = np.log(y_train)
                     y_test = np.log(y_test)
                     st.success(f"Y_train Shape:{y_train.shape}, Y_test Shape:{y_test.shape}")
                 st.session_state.data = [X_train,X_test,y_train,y_test]
 
-                dataTransformationForm.empty()
+                data_transformation_form.empty()
 
 
 
     if predict_bool == 'Yes' and 'Yes' not in [params_bool,transform_data_bool,train_model_bool]:
-        if not hasattr(st.session_state,'data'):
-            train_test_split(str(data_key),data_source)
-        elif hasattr(st.session_state,'hyperparams'):
-            hyperparams = st.session_state.hyperparams
-            model = model_instance(str(algorithm_name) ,str(model_selection_dict[prediction_task][algorithm_name]),hyperparams)
-        elif not hasattr(st.session_state,'hyperparams') :
-            model = model_instance(str(algorithm_name) ,str(model_selection_dict[prediction_task][algorithm_name]))
-        if hasattr(st.session_state,'data_key') and st.session_state.data_key != data_key:
-            train_test_split(str(data_key),data_source)
-            st.session_state.data_source = data_source 
-            st.session_state.data_key = data_key
         
+        check_cache_data()
+        model,model_param_dict = check_cache_hyperparams()
 
 
-        predictionForm = st.empty()
-        preDict = {key:'' for key in st.session_state.dataCols[0:-1]}
+        prediction_form = st.empty()
+        preDict = {key:'' for key in st.session_state.data_cols[0:-1]}
 
-        with predictionForm.form('predict_here'):
+        with prediction_form.form('predict_here'):
             for key,value in preDict.items():
                 preDict[key] = st.text_input(f"{key}",model_param_dict.get(key,value))
             submitted = st.form_submit_button("submit")
@@ -332,7 +301,7 @@ def main() -> None:
           sampleData = np.array([int(feature) for key,feature in preDict.items()])
           sampleData = sampleData.reshape(1,len(sampleData))
           st.success(f'{trained_model.predict(sampleData)}')
-          predictionForm.empty() 
+          prediction_form.empty() 
           
 
 

@@ -39,4 +39,4 @@ for _,data in df.iterrows():
     except requests.exceptions.RequestException:
         df=df[df['IP Address']!=proxy]
 
-df.to_csv('data.txt',sep='\t',index=False)
+df.to_csv('data.txt',sep='\t',index=False)  

@@ -1,3 +1,0 @@
-this will output to console and file
-this is an error
-debug this

@@ -1,0 +1,3 @@
+-------- What is TDD --------
+- Test now develop later
+- most engineering teams prefer unittest over doctest

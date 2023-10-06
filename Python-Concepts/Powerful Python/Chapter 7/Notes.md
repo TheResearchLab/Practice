@@ -1,0 +1,27 @@
+--------- Chapter 7 Intro ---------
+- Python, being a dynamically typed higher-level language, has design patterns that differ from the ones that were made for C++,C#, and the coffee language
+--------- Properties ---------
+- Author speaks about properties like a mix between methods and class members. Javascript also has properties 
+- Setting properties at run-time might be useful for different calculations that could be done based on input params
+- Maintaining internal variables and using getters and setters can allow developers code to be more maintainable.
+--------- The Factory Patterns ---------
+- Two patterns 1) Simple Factory Pattern & 2) Factory Method Pattern
+- SFP is when the object type remains the same but want diff variations
+- FMP is where factory can dynamically choose different types
+--------- Alternative Constructors: The Simple Factory ---------
+- One object type with different variations 
+--------- Dynamic Type: The Factory Method Pattern ---------
+- NA
+--------- The Observer Pattern ---------
+- observable has some event detection algorithm and the observer must know how to detect when an event occurred.
+- Observers subscribe to the observable ie. pub-sub
+--------- The Simple Observer ---------
+--------- Magic Method ---------
+- Negative modulos that are different signs from the denominator ie -7%3 will have denominator added to the numerator until the result is greater or equal than 0.
+
+--------- shortcut functools.total_ordering ---------
+- can use total_ordering to infer most of the logical comparison methods.
+- This can negatively impact stack tracing and performance.
+
+--------- Rebelliously Misusing Magic Methods ---------
+- 

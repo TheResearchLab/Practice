@@ -80,7 +80,7 @@ def getSingleGameMetrics(gameID,homeTeamID,awayTeamID,awayTeamNickname,seasonYea
 sql_query = """ SELECT 
                     sss.* 
                 FROM 
-                    stg_season_schedule sss
+                    stg_nba_schedule_hist sss
                 LEFT JOIN 
                     stg_game_stats sgs1 on sss.game_id = sgs1.game_id and sss.home_team_id = sgs1.team_id
                 LEFT JOIN 

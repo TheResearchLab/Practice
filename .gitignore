@@ -1,6 +1,7 @@
 Streamlit-Basketball-App/venv
 Streamlit-Basketball-App/.env
 Streamlit-Basketball-App/API/__pycache__
+Streamlit-Basketball-App/Data/__pycache__
 Python-Concepts/Effective-Pandas/**/vehicles.csv
 FastAPI/__pycache__
 FastAPI/venv

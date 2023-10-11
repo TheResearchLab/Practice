@@ -1,10 +1,14 @@
 import streamlit as st 
 import joblib 
 import requests
+import pandas as pd 
+import numpy as np
 
 st.snow()
 
 model = joblib.load('NBAHomeTeamWinLoss.pkl')
+ 
+
 
 url = "https://nba-prediction-api.onrender.com/all"
 response = requests.get(url)
@@ -13,22 +17,32 @@ historic_games = pd.read_json(response.json(),orient='records')
 # Get most recent features for away @ team
 historic_games['GAME_DATE'] = pd.to_datetime(historic_games['GAME_DATE'])
 
-df['GAME_DATE'] = pd.to_datetime(df['GAME_DATE'])
-away_max_dates = historic_games.groupby(['AWAY_TEAM_ID'])['GAME_DATE'].idxmax()
-away_team_df = historic_games.iloc[away_max_dates].reset_index(drop=True).rename(columns={'AWAY_TEAM_ID': 'TEAM_ID'})
-away_team_df = away_team_df[['TEAM_ID','GAME_ID','GAME_DATE']]
+url = "https://nba-prediction-api.onrender.com/upcoming_games"
+response = requests.get(url)
+upcoming_games = pd.read_json(response.json(),orient='records')
 
-home_max_dates = historic_games.groupby(['HOME_TEAM_ID'])['GAME_DATE'].idxmax()
-home_team_df = historic_games.iloc[home_max_dates].reset_index(drop=True).rename(columns={'HOME_TEAM_ID': 'TEAM_ID'})
-home_team_df = home_team_df[['TEAM_ID','GAME_ID','GAME_DATE']]
+url = "https://nba-prediction-api.onrender.com/model_features"
+response = requests.get(url)
+model_features = pd.read_json(response.json(),orient='records')
 
-combined_df = pd.concat([home_team_df,away_team_df],ignore_index=True)
-team_last_game = combined_df.iloc[combined_df.groupby(['TEAM_ID'])['GAME_DATE'].idxmax()].reset_index(drop=True)
 
-latest_home_game = df.iloc[:,:12].merge(team_last_game, left_on=['HOME_TEAM_ID','GAME_DATE','GAME_ID'], right_on=['TEAM_ID','GAME_DATE','GAME_ID'])
-latest_away_game = df.iloc[:,-11:].merge(team_last_game, left_on=['AWAY_TEAM_ID','GAME_DATE','GAME_ID'], right_on=['TEAM_ID','GAME_DATE','GAME_ID'])
+def game_prediction(home_id,away_id):
+    outcomes = ['AWAY TEAM WIN','HOME TEAM WIN']
+    home_features = model_features[model_features['team_id'] == home_id].values[0][3:]
+    away_features = model_features[model_features['team_id'] == away_id].values[0][3:]
+    return outcomes[model.predict(np.array([*home_features,*away_features]).reshape(1,14))[0]]
+
+
+
+#upcoming_games['pred'] = 
+upcoming_games['pred'] = upcoming_games.apply( lambda row: game_prediction(row['HOME_TEAM_ID'],row['AWAY_TEAM_ID']),axis=1)
 
 st.title('Upcoming Games')
+st.table(upcoming_games)
+st.title('Model Features')
+st.table(model_features)
+st.text(model_features[model_features['team_id'] == 1610612752].values[0][3:])
+st.text(model.predict(np.array([*home,*home]).reshape(1,14)))
 
 # Get Basketball Model
 # Show Accuracy and Precision

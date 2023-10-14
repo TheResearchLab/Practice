@@ -4,6 +4,7 @@ from util_funcs import mycursor
 query = """ select wf.away_team_id as team_id
                   ,wf.game_id
                   ,wf.game_date
+                  ,wf.season
                   ,wf.away_last_game_oe as last_game_oe
                   ,wf.away_last_game_home_win_pctg as last_game_home_win_pctg
                   ,wf.away_num_rest_days as num_rest_days
@@ -19,6 +20,7 @@ query = """ select wf.away_team_id as team_id
             select wf.home_team_id as team_id
                   ,wf.game_id
                   ,wf.game_date
+                  ,wf.season
                   ,wf.home_last_game_oe as last_game_oe
                   ,wf.home_last_game_home_win_pctg as last_game_home_win_pctg
                   ,wf.home_num_rest_days as num_rest_days

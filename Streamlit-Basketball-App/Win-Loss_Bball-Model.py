@@ -4,9 +4,10 @@ import requests
 import pandas as pd 
 import numpy as np
 
-st.snow()
 
-model = joblib.load('NBAHomeTeamWinLoss.pkl')
+st.sidebar.success('The Research Lab™')
+
+st.session_state.model = joblib.load('NBAHomeTeamWinLoss.pkl')
  
 
 
@@ -30,19 +31,16 @@ def game_prediction(home_id,away_id):
     outcomes = ['AWAY TEAM WIN','HOME TEAM WIN']
     home_features = model_features[model_features['team_id'] == home_id].values[0][3:]
     away_features = model_features[model_features['team_id'] == away_id].values[0][3:]
-    return outcomes[model.predict(np.array([*home_features,*away_features]).reshape(1,14))[0]]
+    return outcomes[st.session_state.model.predict(np.array([*home_features,*away_features]).reshape(1,14))[0]]
 
 
 
 #upcoming_games['pred'] = 
-upcoming_games['pred'] = upcoming_games.apply( lambda row: game_prediction(row['HOME_TEAM_ID'],row['AWAY_TEAM_ID']),axis=1)
+upcoming_games['MODEL_PREDICTION'] = upcoming_games.apply( lambda row: game_prediction(row['HOME_TEAM_ID'],row['AWAY_TEAM_ID']),axis=1)
 
 st.title('Upcoming Games')
-st.table(upcoming_games)
-st.title('Model Features')
-st.table(model_features)
-st.text(model_features[model_features['team_id'] == 1610612752].values[0][3:])
-st.text(model.predict(np.array([*home,*home]).reshape(1,14)))
+st.table(upcoming_games[['GAME_DATETIME','HOME_TEAM_NAME','AWAY_TEAM_NAME','MODEL_PREDICTION']])
+
 
 # Get Basketball Model
 # Show Accuracy and Precision

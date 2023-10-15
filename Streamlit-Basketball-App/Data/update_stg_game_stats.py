@@ -21,13 +21,11 @@ nba_schedule_query = f"""SELECT  cast(gameId as signed) GAME_ID
                     stg_nba_schedule 
                 WHERE 
                     seriesText = ''
-                and gameDateTimeUTC > '{datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S.%f")}'
+                and gameDateTimeUTC < '{datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S.%f")}'
                 and postponedStatus = 'A'
                 and (homeTeamId <> 0 and awayTeamID <> 0)  """
 
 nba_schedule = pd.read_sql_query(nba_schedule_query, engine)
-
-
 
 print(len(nba_schedule))
 

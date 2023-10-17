@@ -27,15 +27,10 @@ nba_schedule_query = f"""SELECT  cast(gameId as signed) GAME_ID
 
 nba_schedule = pd.read_sql_query(nba_schedule_query, engine)
 
-print(len(nba_schedule))
-
 
 for _,game in nba_schedule.iterrows():
     if game['GAME_ID'] not in game_stats['GAME_ID']:
         util_funcs.getSingleGameMetrics(game['GAME_ID'],game['HOME_TEAM_ID'],game['AWAY_TEAM_ID'],game['AWAY_TEAM_NICKNAME'],game['SEASON'],game['GAME_DATE_UTC']).to_sql('stg_game_stats', engine, if_exists='append', index=False, method='multi')
     else:
         continue
-
-print('done')
-
 

@@ -1,4 +1,5 @@
 import pandas as pd
+import numpy as np
 
 df = pd.read_csv(r'vehicles.csv',index_col=None)
 
@@ -33,3 +34,12 @@ mpg_mean = (city_mpg
 
 print(mpg_sum)
 print(mpg_mean) #works because math operations work on booleans
+
+# 7.3 .agg and aggregation strings
+print(city_mpg.agg('mean'))
+
+def second_to_last(s):
+    return s.iloc[-2]
+
+print(city_mpg.agg(['mean',np.var,max,second_to_last]))
+

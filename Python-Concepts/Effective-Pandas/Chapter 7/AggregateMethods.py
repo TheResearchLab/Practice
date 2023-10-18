@@ -43,3 +43,28 @@ def second_to_last(s):
 
 print(city_mpg.agg(['mean',np.var,max,second_to_last]))
 
+# 7.5 Chapter Exercises
+print('Chapter 7 Exercises')
+
+non_missing_values_cnt = city_mpg.count()
+num_entries_cnt = city_mpg.size
+unique_entries_cnt = city_mpg.nunique()
+city_mean_mpg = city_mpg.mean()
+city_max_mpg = city_mpg.max()
+
+print(non_missing_values_cnt)
+print(num_entries_cnt)
+print(unique_entries_cnt)
+print(city_mean_mpg)
+print(city_max_mpg)
+
+print('The Same As Above Just Using Agg')
+operations = ['count','size','nunique','mean','max']
+
+for agg in operations:
+    print(city_mpg.agg(agg))
+
+
+
+
+

@@ -8,6 +8,7 @@ city_mpg = df['city08']
 highway_mpg = df['highway08']
 
 # Chapter 9.1 .apply and .where
+print('===============Section 1================')
 def gt20(value):
     return value > 20
 
@@ -37,3 +38,27 @@ print(make.where(make.isin(top_5),other='Other'))
 
 # Same thing using the mask
 print(make.mask(~make.isin(top_5),other='Other'))
+
+# Chapter 9.2 If Else with Pandas
+print('===============Section 2================')
+top_10 = make.value_counts()[:10]
+print(top_10)
+
+def generalize(val):
+    if val in top_5:
+        return val
+    if val in top_10:
+        return 'top10'
+    return 'other'
+
+#print(make.apply(generalize).value_counts())
+
+print( #this is incorrect
+(make.where(make.isin(top_5),'top_10')
+     .where(make.isin(top_10),'other')
+     .value_counts())
+)
+
+#numpy method
+#logic is also behaving unexpectedly
+print(pd.Series(np.select([make.isin(top_5),make.isin(top_10)],[make,'Top10'],'Other'),index=make.index).value_counts())

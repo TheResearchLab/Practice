@@ -83,8 +83,30 @@ print(cyl.ffill())
 print(cyl.bfill())
 print(cyl.fillna(cyl.mean()))
 
-# Chapter 9.2 Interpolating Data
+# Chapter 9.5 Interpolating Data
 print('===============Section 5================')
 temp = pd.Series([32,40,None,42,39,32])
 print(temp,temp.interpolate()) # index 3 becomes 41 based on the surrounding values
+
+# Chapter 9.6 Clipping Data
+print('===============Section 6================')
+print((
+    city_mpg.loc[:446]
+            .clip(lower=city_mpg.quantile(.05),
+                  upper=city_mpg.quantile(.95))
+)) #results are clipped between 5th and 95th percentile
+
+# Chapter 9.7 Sorting Values
+print('===============Section 7================')
+print(city_mpg.sort_values()) 
+print((city_mpg.sort_values() + highway_mpg) / 2) # Can still do math because of index alignment
+
+# Chapter 9.8 Sorting Values
+print('===============Section 8================')
+print(city_mpg.sort_values().sort_index()) # unsorting and sorting the index
+
+
+
+
+
 

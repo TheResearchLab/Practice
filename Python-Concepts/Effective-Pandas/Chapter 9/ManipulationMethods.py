@@ -74,3 +74,12 @@ print((cyl
 
 missing = cyl.isna()
 print(make.loc[missing]) #.loc for boolean indexing 
+
+# Chapter 9.4 Filling In Missing Data
+print('===============Section 4================')
+
+print(cyl.fillna(0).loc[7136:7141])
+print(cyl.ffill())
+print(cyl.bfill())
+print(cyl.fillna(cyl.mean()))
+

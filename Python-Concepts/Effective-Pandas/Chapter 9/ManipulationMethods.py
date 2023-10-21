@@ -62,3 +62,15 @@ print( #this is incorrect
 #numpy method
 #logic is also behaving unexpectedly
 print(pd.Series(np.select([make.isin(top_5),make.isin(top_10)],[make,'Top10'],'Other'),index=make.index).value_counts())
+
+# Chapter 9.3 Missing Data
+print('===============Section 3================')
+cyl = df.cylinders
+
+print((cyl  
+        .isna()
+        .sum()
+))
+
+missing = cyl.isna()
+print(make.loc[missing]) #.loc for boolean indexing 

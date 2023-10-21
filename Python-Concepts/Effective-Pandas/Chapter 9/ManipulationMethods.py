@@ -122,3 +122,14 @@ print(make.replace('Subaru','スバル'))
 print(make.replace(r'(Fer)ra(r.*)',
             value=r'\2-other-\1',regex=True))
 
+s = pd.Series([40,20,30,20,10])
+s = s.replace(to_replace=[40,10], value=[42, 9.8])
+print(s)
+print(s.replace(to_replace={42:56,9.8:23}))
+
+# Chapter 9.12 Binning Data
+print('===============Section 12================')
+print(pd.cut(city_mpg,10))
+print(pd.cut(city_mpg,[0,10,20,40,70,150])) # need N+1 edges for N bins 
+print(pd.qcut(city_mpg,10)) #quantile binning
+

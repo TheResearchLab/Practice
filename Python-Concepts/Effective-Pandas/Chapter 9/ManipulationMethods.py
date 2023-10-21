@@ -101,12 +101,14 @@ print('===============Section 7================')
 print(city_mpg.sort_values()) 
 print((city_mpg.sort_values() + highway_mpg) / 2) # Can still do math because of index alignment
 
-# Chapter 9.8 Sorting Values
+# Chapter 9.8 Sorting the Index
 print('===============Section 8================')
 print(city_mpg.sort_values().sort_index()) # unsorting and sorting the index
 
-
-
+# Chapter 9.9 Dropping Duplicates
+print('===============Section 9================')
+print(cyl.drop_duplicates())
+print(cyl.drop_duplicates(keep="last"))
 
 
 

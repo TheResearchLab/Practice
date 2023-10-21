@@ -83,3 +83,8 @@ print(cyl.ffill())
 print(cyl.bfill())
 print(cyl.fillna(cyl.mean()))
 
+# Chapter 9.2 Interpolating Data
+print('===============Section 5================')
+temp = pd.Series([32,40,None,42,39,32])
+print(temp,temp.interpolate()) # index 3 becomes 41 based on the surrounding values
+

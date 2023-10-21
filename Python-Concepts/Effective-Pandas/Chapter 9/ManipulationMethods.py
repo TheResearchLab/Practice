@@ -110,5 +110,10 @@ print('===============Section 9================')
 print(cyl.drop_duplicates())
 print(cyl.drop_duplicates(keep="last"))
 
+# Chapter 9.10 Ranking Data
+print('===============Section 10================')
+print(city_mpg.rank())
+print(city_mpg.rank(method='min'))
+print(city_mpg.rank(method='dense'))
 
 

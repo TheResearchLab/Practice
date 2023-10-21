@@ -116,4 +116,9 @@ print(city_mpg.rank())
 print(city_mpg.rank(method='min'))
 print(city_mpg.rank(method='dense'))
 
+# Chapter 9.11 Replacing Data
+print('===============Section 11================')
+print(make.replace('Subaru','スバル'))
+print(make.replace(r'(Fer)ra(r.*)',
+            value=r'\2-other-\1',regex=True))
 

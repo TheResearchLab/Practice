@@ -133,3 +133,37 @@ print(pd.cut(city_mpg,10))
 print(pd.cut(city_mpg,[0,10,20,40,70,150])) # need N+1 edges for N bins 
 print(pd.qcut(city_mpg,10)) #quantile binning
 
+# Chapter 9.13 Exercises
+print('===============Section 13================')
+s = pd.Series([1,11,111,1111,2,22,222,2222,3,33,333,3333])
+
+def high_low(val):
+    return val >= s.mean()
+
+start = t.time()
+print(s.apply(high_low).replace(to_replace=[True,False], value=['high','low']))
+print(f'apply final time is {t.time() - start}')
+
+start = t.time()
+print((
+    np.select([s.gt(s.mean())],['high'],default='low')    
+))
+print(f'np.select final time is {t.time() - start}')
+
+s = pd.Series([1,2,None,3,4,5,6,None,8,9])
+print(s.fillna(s.median()))
+
+s = pd.Series([1,2,3,4,5,6,7,8,9])
+print(s.clip(lower=s.quantile(.1),upper=s.quantile(.95)))
+
+s = pd.Series(['xbox','ps3','gamecube','ps3','xbox','wii','switch','xbox'],dtype='category')
+not_2 = s.value_counts().index[2:]
+print(s.replace({key:'other' for key in not_2}))
+
+def get_top_n(s,n):
+    not_top_n = s.value_counts().index[n:]
+    return s.replace({key:'other' for key in not_top_n})
+
+print(pd.cut(pd.Series([i for i in range(20)]),10))
+print(pd.qcut(pd.Series([i for i in range(20)]),10))
+

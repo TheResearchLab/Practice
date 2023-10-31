@@ -11,3 +11,9 @@ make = df.make
 #     make, #object type
 #     make.astype('string'),   
 # )
+
+# Chapter 11.2 Categorical Strings
+# print(
+#     make.astype('category')
+# )
+

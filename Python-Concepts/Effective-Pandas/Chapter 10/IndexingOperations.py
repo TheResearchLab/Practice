@@ -72,6 +72,11 @@ mask = city2 > 50
 #     city2.sample(6,random_state=33)
 # )
 
+# Chapter 10.7
+print(
+    city2.filter(like='rd'), # filter records item, like, exact
+    city2.filter(regex='(Ford)|(Subaru)') # also regex
+)
 
 
 

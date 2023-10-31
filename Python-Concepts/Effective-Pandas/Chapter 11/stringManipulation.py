@@ -17,3 +17,8 @@ make = df.make
 #     make.astype('category')
 # )
 
+# Chapter 11.3 .str Accessor
+# print(
+#     make.str.lower(),
+#     make.str.find('A')
+# )

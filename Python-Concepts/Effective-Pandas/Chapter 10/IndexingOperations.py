@@ -72,11 +72,20 @@ mask = city2 > 50
 #     city2.sample(6,random_state=33)
 # )
 
-# Chapter 10.7
-print(
-    city2.filter(like='rd'), # filter records item, like, exact
-    city2.filter(regex='(Ford)|(Subaru)') # also regex
-)
+# Chapter 10.7 Filtering Index Values
+# print(
+#     city2.filter(like='rd'), # filter records item, like, exact(fails with duplicates)
+#     city2.filter(regex='(Ford)|(Subaru)') # also regex
+# )
 
+# Chapter 10.8 Reindexing
+#city2.reindex(['Missing','Ford']) # Fails from duplicates
+s1 = pd.Series([10,20,30], index=['a','b','c'])
+s2 = pd.Series([15,25,35], index=['b','c','d'])
+print(
+city_mpg.reindex([0,0,10,20,2_000_000]), # 2 0s and NaN for 2,000,000
+s1,
+s2.reindex(s1.index)
+)
 
 

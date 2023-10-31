@@ -62,8 +62,16 @@ mask = city2 > 50
 # )
 
 # Chapter 10.5 Heads and Tails
-print(
-    city2.head(3),
-    city2.tail(3)
-)
+# print(
+#     city2.head(3),
+#     city2.tail(3)
+# )
+
+# Chapter 10.6 Sampling
+# print(
+#     city2.sample(6,random_state=33)
+# )
+
+
+
 

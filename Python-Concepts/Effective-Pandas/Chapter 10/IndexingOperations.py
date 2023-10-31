@@ -82,10 +82,28 @@ mask = city2 > 50
 #city2.reindex(['Missing','Ford']) # Fails from duplicates
 s1 = pd.Series([10,20,30], index=['a','b','c'])
 s2 = pd.Series([15,25,35], index=['b','c','d'])
+# print(
+# city_mpg.reindex([0,0,10,20,2_000_000]), # 2 0s and NaN for 2,000,000
+# s1,
+# s2.reindex(s1.index)
+# )
+
+# Chapter 10.10 Exercises
+s2 = city2.reset_index(drop=True)
+s3 = s2
+index_mapping = {num:str(num) for num in s2.index}
+s3.index = s2.index.map(index_mapping)
+s3 = s2.reindex(s3.index)
 print(
-city_mpg.reindex([0,0,10,20,2_000_000]), # 2 0s and NaN for 2,000,000
-s1,
-s2.reindex(s1.index)
+    city2.index,
+    city2.sort_index(),
+    city2.reset_index(drop=True),
+    s2.iloc[:5],
+    s2.iloc[-5:],
+    s2.iloc[10:111],
+    s3.loc[['20','10','2']] # change index to string rep
 )
+
+
 
 

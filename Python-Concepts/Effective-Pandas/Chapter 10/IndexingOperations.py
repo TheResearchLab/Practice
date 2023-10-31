@@ -46,18 +46,24 @@ inflation = 1.10
 # )
 
 # Chapter 10.4 the .iloc Attribute
-print(
-    city2.iloc[0], #returns a number
-    city2.iloc[[0]], #returns a series
-    city2.iloc[[1,-2]],
-    city2.iloc[0:5], # first 5 items not including 0->4
-    city2.iloc[-8:] # return the last 8 values
-)
+# print(
+#     city2.iloc[0], #returns a number
+#     city2.iloc[[0]], #returns a series
+#     city2.iloc[[1,-2]],
+#     city2.iloc[0:5], # first 5 items not including 0->4
+#     city2.iloc[-8:] # return the last 8 values
+# )
 
 mask = city2 > 50 
 #city2.iloc[mask] doesn't work
+# print(
+#     city2.iloc[mask.to_numpy()], #can search like loc but need to be a numpy array or python list
+#     city2.iloc[list(mask)]
+# )
+
+# Chapter 10.5 Heads and Tails
 print(
-    city2.iloc[mask.to_numpy()], #can search like loc but need to be a numpy array or python list
-    city2.iloc[list(mask)]
+    city2.head(3),
+    city2.tail(3)
 )
 

@@ -60,5 +60,14 @@ def between(row):
 #      .apply(between,axis='columns')
 # )
 
+# Chapter 11.6 Optimizing .apply with Cython
+    # Need to revisit
+
+# Chapter 11.7 Replacing Text
+print(
+    make.str.replace('A','Å' ), # replace substring
+    make.replace('A','Å',regex=True) #replace mapping of complete string
+)
+
 
 

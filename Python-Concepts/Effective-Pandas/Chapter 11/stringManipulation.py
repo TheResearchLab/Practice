@@ -22,3 +22,11 @@ make = df.make
 #     make.str.lower(),
 #     make.str.find('A')
 # )
+
+# Chapter 11.4 Searching
+print(
+    make.str.extract(r'([^a-z A-Z])'),
+    make
+        .str.extract(r'([^a-z A-Z])',expand=False)
+        .value_counts() #removing missing values and count non-missing values
+)

@@ -69,5 +69,21 @@ print(
     make.replace('A','Å',regex=True) #replace mapping of complete string
 )
 
+# Chapter 11.9 Exercises
+alpha_num_series = pd.Series(['123abcλ','456qweλ'])
+pattern = r'(\d+)'
+non_ascii = r'([^\x00-\x7F]+)'
+
+print(
+    make.str.lower(),
+    make.str.slice(1), #slice method is not index based
+    make.str.slice(-3),
+    alpha_num_series.str.extract(pattern), #regex sucks
+    alpha_num_series.str.extract(non_ascii), #regex sucks
+    pd.get_dummies(make.apply(list).explode()).groupby(level=0).sum()
+
+
+)
+
 
 

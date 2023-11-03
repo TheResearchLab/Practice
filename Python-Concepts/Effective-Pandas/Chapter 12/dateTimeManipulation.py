@@ -83,3 +83,17 @@ print(local.dt.tz_convert('UTC'))
 # Chapter 12.5 Converting to Epochs
 #secs =  local.view(int).floordiv(1e9).astype(int)
 #print(secs) #Broken Code
+
+# Chapter 12.6 Manipulating Dates
+url = 'https://github.com/mattharrison/datasets/raw/master/data/alta-noaa-1980-2019.csv'
+
+alta_df = pd.read_csv(url)
+dates = pd.to_datetime(alta_df['DATE'])
+
+print(
+    alta_df,
+    dates,
+    dates.dt.day_name('es_ES'),
+    dates.dt.is_month_end,
+    dates.dt.strftime('%d/%m/%y')
+)

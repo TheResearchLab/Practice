@@ -18,13 +18,26 @@ snow = (alta_df
 
 
 # Chapter 13.2 Filling In Missing Data
+# print(
+#     snow
+#         .loc['1987-12-30':'1988-01-10'],
+#     snow
+#         .loc['1987-12-30':'1988-01-10']    
+#         .ffill(),
+#     snow
+#         .loc['1987-12-30':'1988-01-10']    
+#         .bfill()
+# )
+
+# Chapter 13.3 Interpolation 
+winter = (snow.index.quarter ==1) | (snow.index.quarter==4)
+
+
 print(
     snow
-        .loc['1987-12-30':'1988-01-10'],
-    snow
-        .loc['1987-12-30':'1988-01-10']    
-        .ffill(),
-    snow
-        .loc['1987-12-30':'1988-01-10']    
-        .bfill()
+        .loc['1987-12-30':'1988-01-10']
+        .interpolate(),
+    snow 
+        .where(~(winter&snow.isna()), snow.interpolate())
+        .where(~(~winter&snow.isna()),0)
 )

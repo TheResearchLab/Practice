@@ -50,7 +50,18 @@ winter = (snow.index.quarter ==1) | (snow.index.quarter==4)
 # )
 
 # Chapter 13.5 Shifting data
+# print(
+#     snow.shift(1),
+#     snow.shift(-1)
+# )
+
+# Chapter 13.6 Rolling Averages
 print(
-    snow.shift(1),
-    snow.shift(-1)
+    snow
+        .rolling(5)
+        .mean(),
+    snow
+        .loc['1987-12-30':'1988-01-10']
+        .rolling(3)
+        .std()
 )

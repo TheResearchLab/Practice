@@ -32,12 +32,19 @@ snow = (alta_df
 # Chapter 13.3 Interpolation 
 winter = (snow.index.quarter ==1) | (snow.index.quarter==4)
 
+# print(
+#     snow
+#         .loc['1987-12-30':'1988-01-10']
+#         .interpolate(),
+#     snow 
+#         .where(~(winter&snow.isna()), snow.interpolate())
+#         .where(~(~winter&snow.isna()),0)
+# )
 
+
+# Chapter 13.4 Dropping Missing Values
 print(
     snow
         .loc['1987-12-30':'1988-01-10']
-        .interpolate(),
-    snow 
-        .where(~(winter&snow.isna()), snow.interpolate())
-        .where(~(~winter&snow.isna()),0)
+        .dropna()
 )

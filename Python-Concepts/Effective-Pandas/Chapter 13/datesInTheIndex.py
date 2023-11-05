@@ -99,18 +99,25 @@ season2017 = snow.loc['2016-10':'2017-05']
 # )
 
 # Chapter 13.9 Groupby Operations
-def season(idx):
-    year = idx.year
-    month = idx.month
-    return np.where((month<10),year,year+1) #year.where doesn't work but numpy does
+# def season(idx):
+#     year = idx.year
+#     month = idx.month
+#     return np.where((month<10),year,year+1) #year.where doesn't work but numpy does
 
 
+# print(snow
+#            .groupby(season)
+#            .sum(),
+#       snow
+#           .resample('A-SEP')
+#           .sum()
+#  )
+
+# Chapter 13.10 Cumulative Operations
 print(snow
-           .groupby(season)
-           .sum(),
+          .loc['2016-10':'2017-09']
+          .cumsum(),
       snow
           .resample('A-SEP')
-          .sum()
- )
-
- 
+          .transform('cumsum') #cumsum annually
+)

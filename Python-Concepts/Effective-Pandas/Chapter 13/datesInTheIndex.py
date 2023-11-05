@@ -56,12 +56,24 @@ winter = (snow.index.quarter ==1) | (snow.index.quarter==4)
 # )
 
 # Chapter 13.6 Rolling Averages
-print(
-    snow
-        .rolling(5)
-        .mean(),
-    snow
-        .loc['1987-12-30':'1988-01-10']
-        .rolling(3)
-        .std()
+# print(
+#     snow
+#         .rolling(5)
+#         .mean(),
+#     snow
+#         .loc['1987-12-30':'1988-01-10']
+#         .rolling(3)
+#         .std()
+# )
+
+# Chapter 13.7 Resampling
+print(snow
+          .resample('M') #aggregate records at end of month
+          .max(),
+      snow 
+          .resample('2M') # end every two months
+          .max(),
+      snow
+          .resample('A-MAY') # end annual in may
+          .max()
 )

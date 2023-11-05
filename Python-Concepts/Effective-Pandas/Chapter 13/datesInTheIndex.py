@@ -1,4 +1,6 @@
 import pandas as pd 
+import numpy as np 
+
 url = 'https://github.com/mattharrison/datasets/raw/master/data/alta-noaa-1980-2019.csv'
 alta_df = pd.read_csv(url)
 dates = pd.to_datetime(alta_df.DATE)
@@ -81,17 +83,34 @@ winter = (snow.index.quarter ==1) | (snow.index.quarter==4)
 # Chapter 13.8 Gathering Aggregate Values (But Keeping Index)
 season2017 = snow.loc['2016-10':'2017-05']
 
-print(
-    snow
-        .div(snow   
-                 .resample('Q')
-                 .transform('sum')) #transform returns a series with the original index
-        .mul(100)
-        .fillna(0),
-    season2017
-              .resample('M')
-              .sum()
-              .div(season2017
-                        .sum())
-              .mul(100)
-)
+# print(
+#     snow
+#         .div(snow   
+#                  .resample('Q')
+#                  .transform('sum')) #transform returns a series with the original index
+#         .mul(100)
+#         .fillna(0),
+#     season2017
+#               .resample('M')
+#               .sum()
+#               .div(season2017
+#                         .sum())
+#               .mul(100)
+# )
+
+# Chapter 13.9 Groupby Operations
+def season(idx):
+    year = idx.year
+    month = idx.month
+    return np.where((month<10),year,year+1) #year.where doesn't work but numpy does
+
+
+print(snow
+           .groupby(season)
+           .sum(),
+      snow
+          .resample('A-SEP')
+          .sum()
+ )
+
+ 

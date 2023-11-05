@@ -67,13 +67,31 @@ winter = (snow.index.quarter ==1) | (snow.index.quarter==4)
 # )
 
 # Chapter 13.7 Resampling
-print(snow
-          .resample('M') #aggregate records at end of month
-          .max(),
-      snow 
-          .resample('2M') # end every two months
-          .max(),
-      snow
-          .resample('A-MAY') # end annual in may
-          .max()
+# print(snow
+#           .resample('M') #aggregate records at end of month
+#           .max(),
+#       snow 
+#           .resample('2M') # end every two months
+#           .max(),
+#       snow
+#           .resample('A-MAY') # end annual in may
+#           .max()
+# )
+
+# Chapter 13.8 Gathering Aggregate Values (But Keeping Index)
+season2017 = snow.loc['2016-10':'2017-05']
+
+print(
+    snow
+        .div(snow   
+                 .resample('Q')
+                 .transform('sum')) #transform returns a series with the original index
+        .mul(100)
+        .fillna(0),
+    season2017
+              .resample('M')
+              .sum()
+              .div(season2017
+                        .sum())
+              .mul(100)
 )

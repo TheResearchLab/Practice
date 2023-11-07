@@ -121,3 +121,10 @@ print(snow
           .resample('A-SEP')
           .transform('cumsum') #cumsum annually
 )
+
+# Chapter 13.12 Exercises 
+data = {'date':['10-12-2022','10-15-2022','11-16-2022'],
+        'foo':['Carl','Randy','Susan']}
+dates = pd.to_datetime(data['date'])
+
+print(dates)

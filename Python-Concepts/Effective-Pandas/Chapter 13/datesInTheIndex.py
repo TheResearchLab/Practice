@@ -123,8 +123,22 @@ print(snow
 )
 
 # Chapter 13.12 Exercises 
-data = {'date':['10-12-2022','10-15-2022','11-16-2022'],
-        'foo':['Carl','Randy','Susan']}
-dates = pd.to_datetime(data['date'])
+data = {
+    'Date': ['2023-01-01', '2023-01-02', '2023-02-01', '2023-02-02', '2023-03-01'],
+    'Number': [10, 20, 15, 25, 30]
+}
 
-print(dates)
+data = pd.Series(data['Number'],index=pd.to_datetime(data['Date']))
+data.index = pd.to_datetime(data.index)
+percentage_per_month = data / data.groupby(data.index.month).transform('sum') *100
+
+print(
+     data
+    ,data.resample('M').mean()
+    ,data.resample('2M').mean()
+    ,percentage_per_month
+    ,data.rolling(7).mean()
+    ,data.loc['2023-01':'2023-03']
+    ,data.loc['2023-09':'2023-12']
+
+    )

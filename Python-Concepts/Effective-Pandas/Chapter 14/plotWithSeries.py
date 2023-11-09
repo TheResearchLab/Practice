@@ -13,18 +13,29 @@ snow = (alta_df
         .rename(dates)        
 )
 
-# Chapter 14.3
+# Chapter 14.3 Histogram
 
 #snow[snow>0].plot.hist()
 #snow[snow>0].plot.hist(bins=20,title='Snowfall Histogram (in)')
 
-# Chapter 14.4 
+# Chapter 14.4 boxplot
 
 #snow.plot.box()
-(snow
-    [lambda s:(s.index.month == 1) & (s>0)]
-    .plot.box()
+# (snow
+#     [lambda s:(s.index.month == 1) & (s>0)] #Lambda like where clause
+#     .plot.box()
+# )
+
+# Chapter 14.5 Kener density estimation
+# essentially a smoothed histogram
+(
+    snow
+        [lambda s:(s.index.month ==1) & (s > 0)]
+        .plot.kde()
+
 )
+
+
 
 
 

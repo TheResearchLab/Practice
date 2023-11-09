@@ -44,12 +44,51 @@ snow = (alta_df
 # )
 
 # Chapter 14.7 Line plots with multiple aggregations
-(snow
-    .resample('Q')
-    .quantile([.5,.9,.99])
-    .unstack() #converts to dataframe
-    .iloc[-300:]
-    .plot.line()
+# (snow
+#     .resample('Q')
+#     .quantile([.5,.9,.99])
+#     .unstack() #converts to dataframe
+#     .iloc[-300:]
+#     .plot.line()
+# )
+
+# Chapter 14.8 Bar Plots
+season2017 = (snow.loc['2016-10':'2017-05']) 
+# (season2017
+#         .resample('M')
+#         .sum()
+#         .div(season2017.sum())
+#         .mul(100)
+#         .rename(lambda idx: idx.month_name())
+#         .plot.bar(title='2017 Monthly Percent of Snowfall')        
+# )
+
+(season2017
+        .resample('M')
+        .sum()
+        .div(season2017.sum())
+        .mul(100)
+        .rename(lambda idx: idx.month_name())
+        .plot.barh(title='2017 Monthly Percent of Snowfall')        
 )
 
+# %%
+
+#Chapter 14.9 
+
+%matplotlib inline 
+
+import pandas as pd
+url = 'https://raw.githubusercontent.com/hadley/fueleconomy/master/data-raw/vehicles.csv'
+df = pd.read_csv(url) 
+
+make = df.make
+
+top10  = make.value_counts().index[:10]
+
+(make
+    .where(make.isin(top10))
+    .value_counts()
+    .plot.barh()
+)
 # %%

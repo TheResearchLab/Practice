@@ -37,12 +37,19 @@ snow = (alta_df
 
 # Chapter 14.6 Line Plots 
 # snow.plot.line()
-(
-    snow
-        .iloc[-300:]
-        .plot.line()
+# (
+#     snow
+#         .iloc[-300:]
+#         .plot.line()
+# )
+
+# Chapter 14.7 Line plots with multiple aggregations
+(snow
+    .resample('Q')
+    .quantile([.5,.9,.99])
+    .unstack() #converts to dataframe
+    .iloc[-300:]
+    .plot.line()
 )
-
-
 
 # %%

@@ -28,15 +28,20 @@ snow = (alta_df
 
 # Chapter 14.5 Kener density estimation
 # essentially a smoothed histogram
+# (
+#     snow
+#         [lambda s:(s.index.month ==1) & (s > 0)]
+#         .plot.kde()
+
+# )
+
+# Chapter 14.6 Line Plots 
+# snow.plot.line()
 (
     snow
-        [lambda s:(s.index.month ==1) & (s > 0)]
-        .plot.kde()
-
+        .iloc[-300:]
+        .plot.line()
 )
-
-
-
 
 
 

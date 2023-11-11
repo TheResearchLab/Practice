@@ -86,9 +86,25 @@ make = df.make
 
 top10  = make.value_counts().index[:10]
 
-(make
-    .where(make.isin(top10))
-    .value_counts()
-    .plot.barh()
+# (make
+#     .where(make.isin(top10))
+#     .value_counts()
+#     .plot.barh()
+# )
+
+# Chapter 14.12 Exercises
+data = pd.Series(data=[11,12,14,16,20,22,15,33,29,42,21,19])
+categorical_data = pd.Series(['blue','black','green','red','red','gray','blue','green','purple','blue','gray'],dtype='category')
+#favorite_colors = cat
+
+print(
+    #data.plot.hist(bins=4),
+    #data.plot.box(),
+    #data.plot.kde(),
+    #data.plot.line(),
+    #categorical_data.value_counts().plot.barh(),
+    categorical_data.value_counts().plot.pie(title='Students favorite colors')
 )
+
+
 # %%

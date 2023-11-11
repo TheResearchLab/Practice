@@ -43,15 +43,24 @@ make_type = pd.CategoricalDtype(categories=sorted(make.unique()), ordered=True)
 # Apply the categorical type to the 'make' column
 ordered_make = make.astype(make_type)
 
-print(
-    ordered_make,
-    ordered_make.max(),
-    #cat_make.max() typeerror
-    ordered_make.sort_values()
-)
+# print(
+#     ordered_make,
+#     ordered_make.max(),
+#     #cat_make.max() typeerror
+#     ordered_make.sort_values()
+# )
 
+# Chapter 15.5 .cat Accessor
+# cat_make.cat.rename_categories(
+#     [c.upper() for c in cat_make.cat.categories] # rename categories with list of same length as current categories
+# )
 
+# cat_make.cat.rename_categories(
+#     {c.lower() for c in cat_make.cat.categories} # or dictionary
+# )
 
+ordered_make.cat.reorder_categories(
+     sorted(ordered_make.cat.categories, key=lambda x: x.lower()))
 # %%
 
 

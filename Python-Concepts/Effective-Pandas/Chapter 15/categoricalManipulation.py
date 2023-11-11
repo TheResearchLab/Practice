@@ -59,8 +59,35 @@ ordered_make = make.astype(make_type)
 #     {c.lower() for c in cat_make.cat.categories} # or dictionary
 # )
 
-ordered_make.cat.reorder_categories(
-     sorted(ordered_make.cat.categories, key=lambda x: x.lower()))
+# ordered_make.cat.reorder_categories(
+#      sorted(ordered_make.cat.categories, key=lambda x: x.lower()))
+
+
+# Chapter 15.6 Category Gotchas 
+#ordered_make.iloc[:100].value_counts() # returns 130 because uses all unique values
+
+# (cat_make   
+#     .iloc[:100]
+#     .groupby(cat_make.iloc[:100])
+#     .first()
+# ) # also returns more than 100
+
+
+# (make   
+#     .iloc[:100]
+#     .groupby(make.iloc[:100])
+#     .first()
+# ) # behavior is as expected with string?
+
+# (cat_make
+#     .iloc[:100]
+#     .groupby(cat_make.iloc[:100],observed=True)
+#     .first()
+# ) # output looks like string output
+
+ordered_make.iloc[0] # returns a scalar
+ordered_make.iloc[[0]] # returns a categorical data type
+
 # %%
 
 

@@ -85,8 +85,42 @@ ordered_make = make.astype(make_type)
 #     .first()
 # ) # output looks like string output
 
-ordered_make.iloc[0] # returns a scalar
-ordered_make.iloc[[0]] # returns a categorical data type
+# ordered_make.iloc[0] # returns a scalar
+# ordered_make.iloc[[0]] # returns a categorical data type
+
+# Chapter 15.7 Generalization 
+
+def generalize_topn(ser,n=5,other='Other'):
+    topn = ser.value_counts().index[:n]
+    if isinstance(ser.dtype,pd.CategoricalDtype):
+        ser = ser.cat.set_categories(
+            topn.set_categories(list(topn)+[other]))
+    return ser.where(ser.isin(topn),other)
+
+cat_make.pipe(generalize_topn,n=20,other='NA')
+
+def generalize_mapping(ser, mapping, default):
+    seen = None
+    res = ser.astype(str)
+    for old, new in mapping.items():
+        mask = ser.str.contains(old)
+    
+        if seen is None:
+            seen = mask
+        else:
+            seen |= mask
+        res = res.where(~mask, new)
+    
+    res = res.where(seen, default)
+    return res.astype('category')
+        
+result = generalize_mapping(cat_make, {'Ford': 'US', 'Tesla': 'US', 'Chevrolet': 'US',
+                                       'Dodge': 'US', 'Oldsmobile': 'US', 'Plymouth': 'US',
+                                       'BMW': 'German'}, 'Other')
+result  
+    
+    
+
 
 # %%
 

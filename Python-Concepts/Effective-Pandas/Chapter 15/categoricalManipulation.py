@@ -117,10 +117,30 @@ def generalize_mapping(ser, mapping, default):
 result = generalize_mapping(cat_make, {'Ford': 'US', 'Tesla': 'US', 'Chevrolet': 'US',
                                        'Dodge': 'US', 'Oldsmobile': 'US', 'Plymouth': 'US',
                                        'BMW': 'German'}, 'Other')
-result  
-    
-    
 
+# Chapter 15.9 Exercises
+str_column = pd.Series(['word' for i in range(0,1000)])
+cat_column = str_column.astype('category')
+    
+    
+print(
+    str_column.memory_usage(deep=True),
+    cat_column.memory_usage(deep=True) #saves about 46x the memory
+)
+
+num_column = pd.Series([i for i in range(0,1000)])
+cat_column = pd.cut(num_column,bins=100).astype('category')
+
+
+print(
+    num_column.memory_usage(deep=True),
+    cat_column.memory_usage(deep=True) #around 30% savings
+)
+
+print(
+    cat_column.memory_usage(deep=True),
+    generalize_topn(cat_column).memory_usage(deep=True) # 5x savings
+)
 
 # %%
 

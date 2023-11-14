@@ -13,6 +13,10 @@ print(
     df['Name'].str.lower()
 )
 
+# Chapter 16.4 Construction
+import numpy as np 
 
+# numpy array to df
+pd.DataFrame(np.random.randn(10,3),columns=['a','b','c'])
 
 # %%

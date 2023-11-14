@@ -1,14 +1,3 @@
-# Retrieve Connection Environment Variables
-DB_HOST=''
-DB_USERNAME=''
-DB_PASSWORD=''
-DB_NAME=''
-
-
-host=DB_HOST
-database=DB_NAME
-user=DB_USERNAME
-password=DB_PASSWORD
 
 from nba_api.stats.endpoints import cumestatsteam
 import time
@@ -19,6 +8,13 @@ import os
 from sqlalchemy import create_engine,text
 import mysql.connector as sql
 
+
+
+#Retrieve Connection Environment Variables
+database = os.getenv('DB_NAME')
+user = os.getenv('DB_USERNAME')
+host = os.getenv('DB_HOST')
+password = os.getenv('DB_PASSWORD')
 
 
 # Create connection w/ mysql.connector

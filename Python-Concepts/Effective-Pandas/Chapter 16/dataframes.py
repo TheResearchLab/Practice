@@ -28,4 +28,18 @@ df =  df.apply(pd.to_numeric, errors='coerce')
 df.apply(np.sum, axis=1) # axis 1 = column axis
 df.apply(np.sum, axis=0) # axis 2 = index axis
 
+# Chapter 16.7 Exercises 
+
+friends = {'name':['jake','liz','mads'],
+           'age':[29,27,27],
+           'title':['park guide','house ceo','damsel in distress']}
+
+friends_df = pd.DataFrame(friends)
+
+print(
+    #friends_df,
+    #friends_df['name'].str.upper(),
+    friends_df['name'].sum() #concat the values together
+      
+)
 # %%

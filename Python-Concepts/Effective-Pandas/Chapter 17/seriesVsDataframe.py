@@ -48,8 +48,8 @@ def tweak_siena_pres(df):
                 )
     ) 
 
-import matplotlib.pyplot as plt
-import seaborn as sns
+#import matplotlib.pyplot as plt
+#import seaborn as sns
 
 def plot_siena_heatmap(df):
     tweaked_df = tweak_siena_pres(df)
@@ -73,5 +73,10 @@ def plot_siena_heatmap(df):
 
 # Assuming df is defined somewhere before this point
 # Call the function to generate the heatmap
-plot_siena_heatmap(df)
+#plot_siena_heatmap(df)
+
+# Chapter 17.2 Viewing Data
+pres = tweak_siena_pres(df)
+#pres.head(3)
+pres.sample(3)
 # %%

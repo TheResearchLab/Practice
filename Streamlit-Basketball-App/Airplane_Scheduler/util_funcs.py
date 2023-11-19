@@ -67,5 +67,6 @@ def getSingleGameMetrics(gameID,homeTeamID,awayTeamID,awayTeamNickname,seasonYea
         data['SEASON'] = seasonYear
         data['GAME_DATE'] = gameDate
         data['GAME_ID'] = gameID
+        data['load_date'] = datetime.today().strftime("%Y-%m-%d")
 
     return data

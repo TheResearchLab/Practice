@@ -64,7 +64,26 @@ for idx,row in pres.iterrows():
     break
 
 for tup in pres.itertuples():
-    print(f'index:{tup[0]}',tup.Party)
+    #print(f'index:{tup[0]}',tup.Party)
     break
 
+# Chapter 19.2 Aggregations
+
+scores = (pres  
+    .loc[:,'Background':'Average_rank']
+    )
+
+
+scores.sum(axis='columns') / len(scores.columns)
+
+# Aggregate Method to do multiple aggregations
+scores.agg(['count','size','sum',lambda col: col.loc[1]])
+
+
+scores.agg({'Background':['count','size'], 'Integrity':['count','max']})
+
+scores.agg(Intelligence_count=('Intelligence','count'),
+            Intelligence_size=('Intelligence','size'))
+
+scores.describe()
 # %%

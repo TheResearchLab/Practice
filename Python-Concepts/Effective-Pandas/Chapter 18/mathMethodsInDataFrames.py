@@ -62,6 +62,10 @@ s2 = scores.iloc[1:6, :5] #get 5 rows from position 2 to 6 (inclusive) rows and 
 #s2
 s1 + s2 #only index 2 & 3  
 
+# Chapter 18.2 Duplicate Index Entries
+scores.iloc[:3,:4] + pd.concat([scores.iloc[1:6,:5]]*2)
 
+# can check for duplicated values with 
+pd.concat([scores.iloc[1:6,:5]]*2).index.duplicated().any()
 
 # %%

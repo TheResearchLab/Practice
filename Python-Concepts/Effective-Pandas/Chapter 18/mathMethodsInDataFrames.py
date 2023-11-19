@@ -48,53 +48,19 @@ def tweak_siena_pres(df):
                 )
     ) 
 
-#import matplotlib.pyplot as plt
-#import seaborn as sns
+pres = tweak_siena_pres(df)
 
-def plot_siena_heatmap(df):
-    tweaked_df = tweak_siena_pres(df)
+# Chapter 18.1 Index Alignment
+scores = (pres
+    .loc[:,'Background':'Average_rank']
+)
 
-    # Set up the figure and axis
-    fig, ax = plt.subplots(figsize=(10, 10), dpi=600)
+s1 = scores.iloc[:3,:4] #get three rows and 4 columns
+s2 = scores.iloc[1:6, :5] #get 5 rows from position 2 to 6 (inclusive) rows and first 5 columns
 
-    # Create a heatmap
-    g = sns.heatmap(tweaked_df
-                    .set_index('President')
-                    .iloc[:, 2:-1],
-                    annot=True,
-                    cmap='viridis',
-                    ax=ax)
-
-    # Customize x-axis labels
-    g.set_xticklabels(g.get_xticklabels(), rotation=45, fontsize=8, ha='right')
-
-    # Set the title
-    _ = plt.title('Presidential Ranking')
-
-# Assuming df is defined somewhere before this point
-# Call the function to generate the heatmap
-#plot_siena_heatmap(df)
-
-# Chapter 17.2 Viewing Data
-#pres = tweak_siena_pres(df)
-#pres.head(3)
-#pres.sample(3)
-
-# Chapter 17.4 Exercises
-import string 
-import random
-
-characters = string.ascii_letters + string.digits
-ages = [i for i in range(0,35)]
-num_records = 1000
-char_length = 7
-
-data = {'name':[ ''.join(random.choice(characters) for _ in range(char_length)) for _ in range(num_records) ],
-        'age':[random.choice(ages) for _ in range(num_records)]}
-
-df = pd.DataFrame(data)
-df.head(20)
-df.sample(30)
+#s1
+#s2
+s1 + s2 #only index 2 & 3  
 
 
 

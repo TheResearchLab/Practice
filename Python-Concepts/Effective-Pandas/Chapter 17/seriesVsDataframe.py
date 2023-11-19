@@ -76,7 +76,28 @@ def plot_siena_heatmap(df):
 #plot_siena_heatmap(df)
 
 # Chapter 17.2 Viewing Data
-pres = tweak_siena_pres(df)
+#pres = tweak_siena_pres(df)
 #pres.head(3)
-pres.sample(3)
+#pres.sample(3)
+
+# Chapter 17.4 Exercises
+import string 
+import random
+
+characters = string.ascii_letters + string.digits
+ages = [i for i in range(0,35)]
+num_records = 1000
+char_length = 7
+
+data = {'name':[ ''.join(random.choice(characters) for _ in range(char_length)) for _ in range(num_records) ],
+        'age':[random.choice(ages) for _ in range(num_records)]}
+
+df = pd.DataFrame(data)
+
+df.head(20)
+
+df.sample(30)
+
+
+
 # %%

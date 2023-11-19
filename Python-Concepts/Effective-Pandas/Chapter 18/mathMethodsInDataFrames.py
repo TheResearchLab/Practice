@@ -68,4 +68,17 @@ scores.iloc[:3,:4] + pd.concat([scores.iloc[1:6,:5]]*2)
 # can check for duplicated values with 
 pd.concat([scores.iloc[1:6,:5]]*2).index.duplicated().any()
 
+
+# Chapter 18.3 Exercises 
+
+data = {'column 1':[i for i in range(0,10)],
+        'column 2':[i for i in range(0,20,2)]}
+
+df = pd.DataFrame(data)
+add_df = df + df
+
+multiply_by_two_df = df*2
+multiply_by_two_df
+
+
 # %%

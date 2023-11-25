@@ -100,5 +100,26 @@ scores.describe()
     .apply(lambda row: row.max()-row.min(),axis='columns')
 )
 
+# 19.5 Exercises
+
+# loop over rows and calculate the max and min vals
+# for idx,vals in pres.iterrows():
+#     max_val = pres.select_dtypes('number').iloc[idx-1].min(axis=0)
+#     min_val = pres.select_dtypes('number').iloc[idx-1].max(axis=0)
+#     print(idx,max_val,min_val)
+
+# calc the max and min row vals with .agg method
+# max_val = pres.select_dtypes('number').agg(func='max',axis=0)
+# min_val = pres.select_dtypes('number').agg(func='min',axis=0)
+# print(min_val)
+# print(max_val)
+
+
+# calc min and max with .apply
+max_val = pres.select_dtypes('number').apply(lambda row: row.max(),axis='columns')
+min_val = pres.select_dtypes('number').apply(lambda row: row.min(),axis='columns')
+
+print(max_val)
+print(min_val)
 
 # %%

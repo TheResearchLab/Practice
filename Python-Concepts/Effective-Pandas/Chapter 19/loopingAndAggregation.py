@@ -86,4 +86,19 @@ scores.agg(Intelligence_count=('Intelligence','count'),
             Intelligence_size=('Intelligence','size'))
 
 scores.describe()
+
+# 19.3 The apply method
+# (pres
+#     .select_dtypes('number')
+#     .pipe(lambda df_:df_.max(axis='columns')
+#     - df_.min(axis='columns'))
+#     )
+
+# apply
+(pres
+    .select_dtypes('number')
+    .apply(lambda row: row.max()-row.min(),axis='columns')
+)
+
+
 # %%

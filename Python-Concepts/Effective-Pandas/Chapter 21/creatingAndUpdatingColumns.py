@@ -55,8 +55,8 @@ for cols in counter.values():
 
 # 21.2 More Column Cleanup
 
-import numpy as np
-import catboost as cb
+# import numpy as np
+# import catboost as cb
 
 
 # A lot of .assign based cleanup
@@ -94,12 +94,12 @@ df2 = (
 )
 
 # still have team_size rows with missing values
-(df2
- .query('team_size.isna()')
- ['employment_status']
- .value_counts(dropna=False)
+# (df2
+#  .query('team_size.isna()')
+#  ['employment_status']
+#  .value_counts(dropna=False)
 
-)
+# )
 
 #use catboost to fill missing values
 
@@ -121,6 +121,32 @@ def predict_col(df, col):
     pred = model.predict(df.drop(columns=[col]))
     return df[col].where(~df[col].isna(), pred) 
 
-df2 = df2.assign(team_size=lambda df_:predict_col(df_,'team_size').astype('int'))
-df2['team_size'].info()
+# df2 = df2.assign(team_size=lambda df_:predict_col(df_,'team_size').astype('int'))
+# df2['team_size'].info()
+
+
+# Chapter 21.4 Exercises
+import numpy as np
+
+# Set a seed for reproducibility
+np.random.seed(42)
+
+# Generate random data for a fictional dataset
+data = {
+    'CustomerID': np.arange(1, 101),
+    'Age': np.random.randint(18, 65, size=100),
+    'Income': np.random.normal(50000, 15000, size=100),
+    'ProductPurchased': np.random.choice(['A', 'B', 'C'], size=100),
+    'CustomerSatisfaction': np.random.choice([1, 2, 3, 4, 5], size=100),
+    'EmailSubscription': np.random.choice([True, False], size=100),
+    'MonthlySpending': np.random.uniform(50, 500, size=100),
+    'ProductRating': np.random.choice([1, 2, 3, 4, 5], size=100),
+    'CustomerSegment': np.random.choice(['Premium', 'Regular', 'Basic'], size=100),
+    'SubscriptionDuration': np.random.choice([1, 2, 3, 4, 5], size=100)
+}
+
+df = pd.DataFrame(data)
+df2 = df.assign(CustomerSegment= lambda df_:df_['CustomerSegment'].astype('category'))
+df.memory_usage(deep=True)
+df2.memory_usage(deep=True)
 # %%

@@ -55,4 +55,20 @@ pres = tweak_siena_pres(df)
 pres[~pres['Integrity'].isna()]
 pres.isna().sum()
 
+
+# Chapter 22.2 Duplicates
+pres.drop_duplicates(subset='Party') # only return first president from each party
+
+pres.drop_duplicates(subset='Party',keep='last') # keep defaults to first or True, can set to last or False
+
+
+# only drop duplicates if previous row is duplicate
+
+(df
+    .assign(first_in_party_seq= lambda df_:df_['Party'] != df_['Party'].shift(1),
+            )
+    .loc[lambda df_:df_['first_in_party_seq']]
+)
+
+
 # %%

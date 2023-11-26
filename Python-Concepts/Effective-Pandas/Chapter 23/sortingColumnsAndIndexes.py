@@ -58,4 +58,20 @@ pres.sort_values(by='Party')
 # Chapter 23.2 Sorting Column Order
 pres.sort_index(axis='columns')
 
+
+# Chapter 23.3 Setting and Sorting the Index
+(pres
+    .set_index('President')
+    .sort_index()
+)
+
+# sorting allows for slicing by name when duplicated index
+
+(pres   
+    .set_index('Party')
+    .sort_index()
+    .loc['Democratic':'Republican']
+)
+
+
 # %%

@@ -71,4 +71,46 @@ pres.drop_duplicates(subset='Party',keep='last') # keep defaults to first or Tru
 )
 
 
+# Chapter 22.4 Exercises
+
+data = {
+    'CustomerID': np.arange(1, 101),
+    'Age': np.random.randint(18, 65, size=100),
+    'Income': np.random.normal(50000, 15000, size=100),
+    'ProductPurchased': np.random.choice(['A', 'B', 'C'], size=100),
+    'CustomerSatisfaction': np.random.choice([1, 2, 3, 4, 5], size=100),
+    'EmailSubscription': np.random.choice([True, False], size=100),
+    'MonthlySpending': np.random.uniform(50, 500, size=100),
+    'ProductRating': np.random.choice([1, 2, 3, 4, 5], size=100),
+    'CustomerSegment': np.random.choice(['Premium', 'Regular', 'Basic'], size=100),
+    'SubscriptionDuration': np.random.choice([1, 2, 3, 4, 5], size=100)
+}
+
+income_indices = np.random.choice(np.arange(100), size=10, replace=False)
+product_purchased_indices = np.random.choice(np.arange(100), size=5, replace=False)
+customer_satisfaction_indices = np.random.choice(np.arange(100), size=5, replace=False)
+email_subscription_indices = np.random.choice(np.arange(100), size=5, replace=False)
+monthly_spending_indices = np.random.choice(np.arange(100), size=10, replace=False)
+product_rating_indices = np.random.choice(np.arange(100), size=5, replace=False)
+customer_segment_indices = np.random.choice(np.arange(100), size=5, replace=False)
+subscription_duration_indices = np.random.choice(np.arange(100), size=10, replace=False)
+
+# Introduce variations
+data['Income'][income_indices] = np.nan
+data['ProductPurchased'][product_purchased_indices] = 'D'
+data['CustomerSatisfaction'][customer_satisfaction_indices] = np.random.randint(6, 10, size=5)
+data['EmailSubscription'][email_subscription_indices] = 'unknown'
+data['MonthlySpending'][monthly_spending_indices] = -100
+data['ProductRating'][product_rating_indices] = 6
+data['CustomerSegment'][customer_segment_indices] = 'PREMIUM'
+data['SubscriptionDuration'][subscription_duration_indices] = -1  # Placeholder for NaN
+data['SubscriptionDuration'][np.random.choice(subscription_duration_indices, size=5, replace=False)] = -3
+df = pd.DataFrame(data)
+
+df.isna().sum()
+df.isna().mean() #return the pctg missing
+
+df[df['Income'].isna()]
+df.drop_duplicates()
+
 # %%

@@ -55,5 +55,7 @@ pres.sort_values(by='Party')
     .sort_values(by=['Party','Average_rank'],
                  ascending=[True,False]))
 
+# Chapter 23.2 Sorting Column Order
+pres.sort_index(axis='columns')
 
 # %%

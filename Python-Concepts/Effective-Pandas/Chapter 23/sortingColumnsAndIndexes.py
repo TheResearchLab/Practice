@@ -73,5 +73,40 @@ pres.sort_index(axis='columns')
     .loc['Democratic':'Republican']
 )
 
+# Chapter 23.5 Exercises
+import random 
+
+
+products = {
+    101: 'Product1',
+    102: 'Product2',
+    103: 'Product3',
+    104: 'Product4',
+    105: 'Product5',
+    106: 'Product6',
+    107: 'Product7',
+    108: 'Product8',
+    109: 'Product9',
+    110: 'Product10',
+}
+
+names = ['Alice', 'Bob', 'Charlie', 'David', 'Emma', 'Frank', 'Grace', 'Hank', 'Ivy', 'Jack']
+
+# Generate random data for customer orders
+data = {
+    'order_id': list(range(1, 101)),
+    'customer_id': [random.randint(1, 10) for _ in range(100)],
+    'customer_name': [random.choice(names) for _ in range(100)],
+    'product_id': [random.choice(list(products.values())) for _ in range(100)],
+    'quantity': [random.randint(1, 5) for _ in range(100)],
+    'price_per_unit': [round(random.uniform(10.0, 50.0), 2) for _ in range(100)],
+}
+
+df = pd.DataFrame(data)
+df.set_index('product_id').sort_index().loc['Prod':'Product9']
+
+df.sort_values('price_per_unit',ascending=False)
+
+df.sort_values(by='product_id',key=lambda x:x.str[-1])
 
 # %%

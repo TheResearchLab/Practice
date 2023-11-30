@@ -54,8 +54,18 @@ def name_to_initial(val):
     names = val.split()
     return ' '.join([f'{names[0][0]}', *names[1:]])
 
+# (pres
+#     .set_index('President')
+#     .rename(name_to_initial)
+# )
+
+
+# Chapter 24.2 Resetting the Index
 (pres
     .set_index('President')
-    .rename(name_to_initial)
+    .reset_index()
 )
+
+
+
 # %%

@@ -61,11 +61,25 @@ def name_to_initial(val):
 
 
 # Chapter 24.2 Resetting the Index
+# (pres
+#     .set_index('President')
+#     .reset_index()
+# )
+
+# Chapter 24.3 Dataframe Indexing,Filtering, and Querying
+lt10 = pres.Average_rank < 10
+pres[lt10]
+
+pres[lt10 & (pres['Party'] == 'Republican')]
+
+pres.query('Average_rank < 10 and Party == "Republican"')
+
+
+pres.query('@lt10 and Party=="Republican"')
+
+# use methods in query method
+party = ['Republican']
 (pres
-    .set_index('President')
-    .reset_index()
-)
-
-
+    .query('Party.isin(@party)'))
 
 # %%

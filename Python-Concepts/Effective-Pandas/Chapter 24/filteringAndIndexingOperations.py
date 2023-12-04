@@ -84,22 +84,62 @@ def name_to_initial(val):
 
 
 # Chapter 24.4 Indexing by Position
-pres.iloc[1] # returns a series even though a row
+# pres.iloc[1] # returns a series even though a row
 
-# return dataframe object
-type(pres.iloc[[1]])
+# # return dataframe object
+# type(pres.iloc[[1]])
 
-pres.iloc[[0,5,10]]
+# pres.iloc[[0,5,10]]
 
-pres.iloc[0:11:5] # get from index 0 to 11 (not including) and get every 5th item
+# pres.iloc[0:11:5] # get from index 0 to 11 (not including) and get every 5th item (follows half open)
 
-# passing column index 
-pres.iloc[[0,5,10],1] # return series
-pres.iloc[[0,5,10],[1]] #return dataframe
-
-
-#return columns by index 
-pres.iloc[:,[9,2,2]] # return columns at column index pres + party
+# # passing column index 
+# pres.iloc[[0,5,10],1] # return series
+# pres.iloc[[0,5,10],[1]] #return dataframe
 
 
+# #return columns by index 
+# pres.iloc[:,[9,2,2]] # return columns at column index pres + party
+
+
+# Chapter 24.5 Indexing by Name
+# pres.loc['1':'5'] # behaviour seems different than book
+
+# pres.iloc[1:5]
+
+# (pres
+#     .set_index('Party')
+#     .loc[['Whig']] #returns same results even when list
+# )
+
+# Caution - this returns a list because only one entry.
+# (pres
+#     .set_index('Party')
+#     .loc['Federalist']
+# )
+
+(pres
+    .set_index('Party')
+    .sort_index()
+    .loc['Democratic':'Independent']
+)
+
+(pres
+    .set_index('President')
+    .sort_index()
+    .loc['C':'Thomas Jefferson','Party':'Integrity'])
+
+(pres
+    .assign(Party=pres['Party'].astype(str)) # need to convert to string before partial indexing
+    .set_index('Party')
+    .sort_index()
+    .loc['D':'J']    
+)
+
+(pres #partial index on the column values after sorting
+    .set_index('President')
+    .sort_index()
+    .sort_index(axis='columns')
+    .loc['C':'Thomas Jefferson','B':'D']
+)
 # %%

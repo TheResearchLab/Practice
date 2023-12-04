@@ -67,19 +67,39 @@ def name_to_initial(val):
 # )
 
 # Chapter 24.3 Dataframe Indexing,Filtering, and Querying
-lt10 = pres.Average_rank < 10
-pres[lt10]
+# lt10 = pres.Average_rank < 10
+# pres[lt10]
 
-pres[lt10 & (pres['Party'] == 'Republican')]
+# pres[lt10 & (pres['Party'] == 'Republican')]
 
-pres.query('Average_rank < 10 and Party == "Republican"')
+# pres.query('Average_rank < 10 and Party == "Republican"')
 
 
-pres.query('@lt10 and Party=="Republican"')
+# pres.query('@lt10 and Party=="Republican"')
 
-# use methods in query method
-party = ['Republican']
-(pres
-    .query('Party.isin(@party)'))
+# # use methods in query method
+# party = ['Republican']
+# (pres
+#     .query('Party.isin(@party)'))
+
+
+# Chapter 24.4 Indexing by Position
+pres.iloc[1] # returns a series even though a row
+
+# return dataframe object
+type(pres.iloc[[1]])
+
+pres.iloc[[0,5,10]]
+
+pres.iloc[0:11:5] # get from index 0 to 11 (not including) and get every 5th item
+
+# passing column index 
+pres.iloc[[0,5,10],1] # return series
+pres.iloc[[0,5,10],[1]] #return dataframe
+
+
+#return columns by index 
+pres.iloc[:,[9,2,2]] # return columns at column index pres + party
+
 
 # %%

@@ -145,7 +145,18 @@ def name_to_initial(val):
 
 # Chapter 24.6 Filtering with Functions & .loc
 
-(pres
-    .loc[pres.Average_rank < 10, lambda df_:df_.columns[:3]] #open interval
-)
+# (pres
+#     .loc[pres.Average_rank < 10, lambda df_:df_.columns[:3]] #open interval
+# )
+
+# Chapter 24.9 Exercises
+
+pres.index = pres.index.astype(str)
+pres.loc[['1','2']]
+
+pres.iloc[[0,1]] # pull first 2 rows
+
+pres[pres.columns[-2:]] # pull last 2 cols by name
+
+pres.iloc[:,-2:] # last two columns by position
 # %%

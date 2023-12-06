@@ -118,28 +118,34 @@ def name_to_initial(val):
 #     .loc['Federalist']
 # )
 
-(pres
-    .set_index('Party')
-    .sort_index()
-    .loc['Democratic':'Independent']
-)
+# (pres
+#     .set_index('Party')
+#     .sort_index()
+#     .loc['Democratic':'Independent']
+# )
+
+# (pres
+#     .set_index('President')
+#     .sort_index()
+#     .loc['C':'Thomas Jefferson','Party':'Integrity'])
+
+# (pres
+#     .assign(Party=pres['Party'].astype(str)) # need to convert to string before partial indexing
+#     .set_index('Party')
+#     .sort_index()
+#     .loc['D':'J']    
+# )
+
+# (pres #partial index on the column values after sorting
+#     .set_index('President')
+#     .sort_index()
+#     .sort_index(axis='columns')
+#     .loc['C':'Thomas Jefferson','B':'D']
+# )
+
+# Chapter 24.6 Filtering with Functions & .loc
 
 (pres
-    .set_index('President')
-    .sort_index()
-    .loc['C':'Thomas Jefferson','Party':'Integrity'])
-
-(pres
-    .assign(Party=pres['Party'].astype(str)) # need to convert to string before partial indexing
-    .set_index('Party')
-    .sort_index()
-    .loc['D':'J']    
-)
-
-(pres #partial index on the column values after sorting
-    .set_index('President')
-    .sort_index()
-    .sort_index(axis='columns')
-    .loc['C':'Thomas Jefferson','B':'D']
+    .loc[pres.Average_rank < 10, lambda df_:df_.columns[:3]] #open interval
 )
 # %%

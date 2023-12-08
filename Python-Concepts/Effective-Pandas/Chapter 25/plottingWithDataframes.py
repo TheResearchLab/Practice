@@ -140,32 +140,42 @@ pres = tweak_siena_pres(df)
 #     .describe()
 # )
 
-(pres
-    .set_index('President')
-    .loc[:,'Background':'Average_rank']
-    .iloc[:9]
-    .T
-    .plot.density()
-    .legend(bbox_to_anchor=(1,1))
- )
+# (pres
+#     .set_index('President')
+#     .loc[:,'Background':'Average_rank']
+#     .iloc[:9]
+#     .T
+#     .plot.density()
+#     .legend(bbox_to_anchor=(1,1))
+#  )
 
-(pres
-    .set_index('President')
-    .loc[:,'Background':'Average_rank']
-    .iloc[:9]
-    .T 
-    .plot.hist()
-    .legend(bbox_to_anchor=(1,1))
-)
+# (pres
+#     .set_index('President')
+#     .loc[:,'Background':'Average_rank']
+#     .iloc[:9]
+#     .T 
+#     .plot.hist()
+#     .legend(bbox_to_anchor=(1,1))
+# )
 
-ax = (pres
-        .set_index('President')
-        .loc[:,'Background':'Average_rank']
-        .iloc[:9]
-        .T 
-        .plot.box(rot=45)
-)
+# ax = (pres
+#         .set_index('President')
+#         .loc[:,'Background':'Average_rank']
+#         .iloc[:9]
+#         .T 
+#         .plot.box(rot=45)
+# )
 
-ax.set_xticklabels(labels=(pres['President'][:9]),ha='right')
+# ax.set_xticklabels(labels=(pres['President'][:9]),ha='right')
 
+# 25.7 Exercises 
+import numpy as np 
+
+np.random.seed(42)
+
+num_rows = 100
+
+data = {'birth_rate':np.random.poisson(lam=16.5,size=num_rows)}
+
+pd.DataFrame(data)
 # %%

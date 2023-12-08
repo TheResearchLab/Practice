@@ -107,26 +107,65 @@ pres = tweak_siena_pres(df)
 #                   c='Luck', cmap='viridis')
 # )
 
-pres.Integrity.corr(pres['Avoid_crucial_mistakes'])
+# pres.Integrity.corr(pres['Avoid_crucial_mistakes'])
 
-(pres
-    .plot.hexbin(x='Integrity',y='Avoid_crucial_mistakes',
-                 cmap='Greens')
-)
+# (pres
+#     .plot.hexbin(x='Integrity',y='Avoid_crucial_mistakes',
+#                  cmap='Greens')
+# )
 
 # 25.4 Area Plots and Stacked Bar Plots
 
 
-fig,ax = plt.subplots(dpi=600,figsize=(12,4))
+# fig,ax = plt.subplots(dpi=600,figsize=(12,4))
+# (pres
+#     .plot.area(x='President',
+#         y='Background Imagination Integrity Intelligence Luck '\
+#             'Willing_to_take_risks Ability_to_compromise'.split(),rot=45)
+# )
+
+# ax.set_xticks(range(len(pres)))
+# ax.set_xticklabels(labels=pres['President'],ha='right')
+
+
+# 25.5 Column Distribution with KDEs, Histograms and Boxplots
+
+#fig,ax = plt.subplots(dpi=600,figsize=(12,4))
+
+# (pres
+#     .set_index('President')
+#     .loc[:,'Background':'Average_rank']
+#     .iloc[:9]
+#     .T
+#     .describe()
+# )
+
 (pres
-    .plot.area(x='President',
-        y='Background Imagination Integrity Intelligence Luck '\
-            'Willing_to_take_risks Ability_to_compromise'.split(),rot=45)
+    .set_index('President')
+    .loc[:,'Background':'Average_rank']
+    .iloc[:9]
+    .T
+    .plot.density()
+    .legend(bbox_to_anchor=(1,1))
+ )
+
+(pres
+    .set_index('President')
+    .loc[:,'Background':'Average_rank']
+    .iloc[:9]
+    .T 
+    .plot.hist()
+    .legend(bbox_to_anchor=(1,1))
 )
 
-ax.set_xticks(range(len(pres)))
-ax.set_xticklabels(labels=pres['President'],ha='right')
+ax = (pres
+        .set_index('President')
+        .loc[:,'Background':'Average_rank']
+        .iloc[:9]
+        .T 
+        .plot.box(rot=45)
+)
 
-
+ax.set_xticklabels(labels=(pres['President'][:9]),ha='right')
 
 # %%

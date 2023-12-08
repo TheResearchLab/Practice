@@ -83,21 +83,34 @@ pres = tweak_siena_pres(df)
 
 # 25.2 Bar Plots 
 
-fig,ax = plt.subplots(dpi=600, figsize=(10,4))
+# fig,ax = plt.subplots(dpi=600, figsize=(10,4))
+# (pres
+#     .set_index('President')
+#     .iloc[:,-5:-1]
+#     .plot.bar(rot=45,figsize=(12,4),ax=ax)
+# )
+
+# ax.set_xticklabels(labels=ax.get_xticklabels(),ha='right')
+# ax.legend(bbox_to_anchor=(1,1))
+
+# (pres # easier to turn bar horizontal than rotate to read
+#     .set_index('President')
+#     .iloc[:,-5:-1]
+#     .plot.barh(figsize=(4,12))
+#     .legend(bbox_to_anchor=(1,1))
+# )
+
+# 25.3 Scatter Plots
+
+# (pres
+#     .plot.scatter(x='Integrity',y='Avoid_crucial_mistakes',
+#                   c='Luck', cmap='viridis')
+# )
+
+pres.Integrity.corr(pres['Avoid_crucial_mistakes'])
+
 (pres
-    .set_index('President')
-    .iloc[:,-5:-1]
-    .plot.bar(rot=45,figsize=(12,4),ax=ax)
+    .plot.hexbin(x='Integrity',y='Avoid_crucial_mistakes',
+                 cmap='Greens')
 )
-
-ax.set_xticklabels(labels=ax.get_xticklabels(),ha='right')
-ax.legend(bbox_to_anchor=(1,1))
-
-(pres # easier to turn bar horizontal than rotate to read
-    .set_index('President')
-    .iloc[:,-5:-1]
-    .plot.barh(figsize=(4,12))
-    .legend(bbox_to_anchor=(1,1))
-)
-
 # %%

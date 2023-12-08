@@ -113,4 +113,20 @@ pres.Integrity.corr(pres['Avoid_crucial_mistakes'])
     .plot.hexbin(x='Integrity',y='Avoid_crucial_mistakes',
                  cmap='Greens')
 )
+
+# 25.4 Area Plots and Stacked Bar Plots
+
+
+fig,ax = plt.subplots(dpi=600,figsize=(12,4))
+(pres
+    .plot.area(x='President',
+        y='Background Imagination Integrity Intelligence Luck '\
+            'Willing_to_take_risks Ability_to_compromise'.split(),rot=45)
+)
+
+ax.set_xticks(range(len(pres)))
+ax.set_xticklabels(labels=pres['President'],ha='right')
+
+
+
 # %%

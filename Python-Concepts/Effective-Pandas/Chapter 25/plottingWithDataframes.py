@@ -50,36 +50,54 @@ def tweak_siena_pres(df):
 
 pres = tweak_siena_pres(df)
 
-# Chapter 25 line plots
+# Chapter 25.1 line plots
 
-pres.plot().legend(bbox_to_anchor=(1,1))
+# pres.plot().legend(bbox_to_anchor=(1,1))
 
-fig,ax=plt.subplots(dpi=600,figsize=(10,4))
-colors = []
+# fig,ax=plt.subplots(dpi=600,figsize=(10,4))
+# colors = []
 
-def set_colors(df):
-    for col in df.columns:
-        if 'George' in col:
-            colors.append('#990000')
-        else:
-            colors.append('#999999')
-    return df
+# def set_colors(df):
+#     for col in df.columns:
+#         if 'George' in col:
+#             colors.append('#990000')
+#         else:
+#             colors.append('#999999')
+#     return df
             
 
+# (pres
+#     .set_index('President')
+#     .loc[::2,'Background':'Overall'] #gets every other president
+#     .T
+#     .pipe(set_colors)
+#     .plot(ax=ax,rot=45,color=colors)
+#     .legend(bbox_to_anchor=(1,1))
+# )
+# ax.set_xticks(range(21))
+# ax.set_xticklabels(pres
+#                     .loc[:,'Background':'Overall'].columns, ha='right')
+# ax.set_ylabel('Rank')
+
+# plt.show()
+
+# 25.2 Bar Plots 
+
+fig,ax = plt.subplots(dpi=600, figsize=(10,4))
 (pres
     .set_index('President')
-    .loc[::2,'Background':'Overall'] #gets every other president
-    .T
-    .pipe(set_colors)
-    .plot(ax=ax,rot=45,color=colors)
+    .iloc[:,-5:-1]
+    .plot.bar(rot=45,figsize=(12,4),ax=ax)
+)
+
+ax.set_xticklabels(labels=ax.get_xticklabels(),ha='right')
+ax.legend(bbox_to_anchor=(1,1))
+
+(pres # easier to turn bar horizontal than rotate to read
+    .set_index('President')
+    .iloc[:,-5:-1]
+    .plot.barh(figsize=(4,12))
     .legend(bbox_to_anchor=(1,1))
 )
-ax.set_xticks(range(21))
-ax.set_xticklabels(pres
-                    .loc[:,'Background':'Overall'].columns, ha='right')
-ax.set_ylabel('Rank')
-
-plt.show()
-
 
 # %%

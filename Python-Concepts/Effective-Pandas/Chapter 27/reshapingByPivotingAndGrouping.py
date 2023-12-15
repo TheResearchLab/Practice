@@ -55,4 +55,21 @@ pd.crosstab(index=df2.country_live,columns=df2.employment_status,values=df2['age
     .age
     .mean()
     .unstack())
+
+# Chapter 27.2 Using a Custom Agg Function
+
+def per_emacs(ser):
+    return ser.str.contains('Emacs').sum() / len(ser) * 100 
+
+(df2
+    .pivot_table(index='country_live',values='ide_main',aggfunc=per_emacs))
+
+pd.crosstab(index=df2.country_live,
+            columns=df2.assign(iden='emacs_per').iden,
+            values=df2.ide_main, aggfunc=per_emacs)
+
+df2.assign(iden='emacs_per').iden
+
+df2.groupby(['country_live'])[['ide_main']].agg(per_emacs)
+
 # %%

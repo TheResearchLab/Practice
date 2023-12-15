@@ -43,45 +43,65 @@ df2 = (
 
 # Chapter 27.1 A basic Example
 # method 1
-(df2
-    .pivot_table(index='country_live',columns='employment_status', values='age',aggfunc='mean'))
+# (df2
+#     .pivot_table(index='country_live',columns='employment_status', values='age',aggfunc='mean'))
 
-# method 2
-pd.crosstab(index=df2.country_live,columns=df2.employment_status,values=df2['age'],aggfunc='mean')
+# # method 2
+# pd.crosstab(index=df2.country_live,columns=df2.employment_status,values=df2['age'],aggfunc='mean')
 
-# method 3
-(df2
-    .groupby(['country_live','employment_status'])
-    .age
-    .mean()
-    .unstack())
+# # method 3
+# (df2
+#     .groupby(['country_live','employment_status'])
+#     .age
+#     .mean()
+#     .unstack())
 
-# Chapter 27.2 Using a Custom Agg Function
+# # Chapter 27.2 Using a Custom Agg Function
 
-def per_emacs(ser):
-    return ser.str.contains('Emacs').sum() / len(ser) * 100 
+# def per_emacs(ser):
+#     return ser.str.contains('Emacs').sum() / len(ser) * 100 
 
-(df2
-    .pivot_table(index='country_live',values='ide_main',aggfunc=per_emacs))
+# (df2
+#     .pivot_table(index='country_live',values='ide_main',aggfunc=per_emacs))
 
-pd.crosstab(index=df2.country_live,
-            columns=df2.assign(iden='emacs_per').iden,
-            values=df2.ide_main, aggfunc=per_emacs)
+# pd.crosstab(index=df2.country_live,
+#             columns=df2.assign(iden='emacs_per').iden,
+#             values=df2.ide_main, aggfunc=per_emacs)
 
-df2.assign(iden='emacs_per').iden
+# df2.assign(iden='emacs_per').iden
 
-df2.groupby(['country_live'])[['ide_main']].agg(per_emacs)
+# df2.groupby(['country_live'])[['ide_main']].agg(per_emacs)
 
 
 # Chapter 27.3 Multiple Aggs
 
 
-(df2
-    .pivot_table(index='country_live',values='age',aggfunc=(min,max)))
+# (df2
+#     .pivot_table(index='country_live',values='age',aggfunc=(min,max)))
 
 
-(df2.groupby('country_live')[['age']].agg(['max','min']))
+# (df2.groupby('country_live')[['age']].agg(['max','min']))
 
-pd.crosstab(df2.country_live, values=df2['age'],aggfunc=(min,max),
-            columns=df2.assign(val='age').val)
+# pd.crosstab(df2.country_live, values=df2['age'],aggfunc=(min,max), # need to set age as val to perform agg
+#             columns=df2.assign(val='age').val)
+
+# Chapter 27.4 Per Column Aggs - Non Operational Code
+
+# (df2    
+#     .pivot_table(index='country_live',aggfunc=(min,max))
+# )
+
+# df2['country_live'] = df2['country_live'].astype('category').cat.as_ordered()
+
+# (df2.groupby('country_live').agg(['min']))
+
+agg_dict = {'age':['min','max'],
+            'team_size':'mean'}
+
+df2.groupby('country_live').agg(agg_dict) # this works, but returns nasty df with stacked columns
+
+df2.groupby('country_live').agg(age_min=('age','min'),
+                                age_max=('age','max'),
+                                team_size_mean=('team_size','mean'))
+
 # %%

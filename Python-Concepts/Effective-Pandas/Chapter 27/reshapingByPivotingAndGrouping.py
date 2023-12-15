@@ -72,4 +72,16 @@ df2.assign(iden='emacs_per').iden
 
 df2.groupby(['country_live'])[['ide_main']].agg(per_emacs)
 
+
+# Chapter 27.3 Multiple Aggs
+
+
+(df2
+    .pivot_table(index='country_live',values='age',aggfunc=(min,max)))
+
+
+(df2.groupby('country_live')[['age']].agg(['max','min']))
+
+pd.crosstab(df2.country_live, values=df2['age'],aggfunc=(min,max),
+            columns=df2.assign(val='age').val)
 # %%

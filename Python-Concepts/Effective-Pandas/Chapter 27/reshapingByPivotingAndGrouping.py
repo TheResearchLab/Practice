@@ -111,4 +111,13 @@ df2.groupby('country_live').agg(age_min=('age','min'),
 
 (df2.groupby(['country_live','ide_main'],observed=True)[['age']].agg(['min','max']))
 
+
+# Chapter 27.6 Grouping with Functions
+
+def even_grouper(idx):
+    return 'odd' if idx % 2 else 'even'
+
+df2.pivot_table(index=even_grouper, aggfunc='size')
+
+df2.groupby(even_grouper).size()
 # %%

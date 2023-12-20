@@ -120,4 +120,28 @@ def even_grouper(idx):
 df2.pivot_table(index=even_grouper, aggfunc='size')
 
 df2.groupby(even_grouper).size()
+
+# Chapter 27.8 Exercises
+import random
+from datetime import datetime, timedelta
+
+# Set a random seed for reproducibility
+random.seed(42)
+
+# Generate sample data
+num_records = 100
+products = ['ProductA', 'ProductB', 'ProductC']
+categories = ['Category1', 'Category2', 'Category3']
+
+data = {
+    'Date': [datetime(2023, 1, 1) + timedelta(days=random.randint(1, 30)) for _ in range(num_records)],
+    'Product': [random.choice(products) for _ in range(num_records)],
+    'Category': [random.choice(categories) for _ in range(num_records)],
+    'Sales': [random.uniform(100, 1000) for _ in range(num_records)],
+    'Quantity': [random.randint(1, 10) for _ in range(num_records)],
+}
+
+# Create a DataFrame
+df = pd.DataFrame(data)
+df
 # %%

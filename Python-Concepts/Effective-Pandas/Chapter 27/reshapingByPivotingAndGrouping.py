@@ -95,31 +95,31 @@ df2 = (
 
 # (df2.groupby('country_live').agg(['min']))
 
-agg_dict = {'age':['min','max'],
-            'team_size':'mean'}
+# agg_dict = {'age':['min','max'],
+#             'team_size':'mean'}
 
-df2.groupby('country_live').agg(agg_dict) # this works, but returns nasty df with stacked columns
+# df2.groupby('country_live').agg(agg_dict) # this works, but returns nasty df with stacked columns
 
-df2.groupby('country_live').agg(age_min=('age','min'),
-                                age_max=('age','max'),
-                                team_size_mean=('team_size','mean'))
+# df2.groupby('country_live').agg(age_min=('age','min'),
+#                                 age_max=('age','max'),
+#                                 team_size_mean=('team_size','mean'))
 
 # Chapter 27.5 Grouping by Hierarchy
 
-(df2.pivot_table(index=['country_live','ide_main'],
-                 values='age', aggfunc=['min','max'])).swaplevel(axis='columns')
+# (df2.pivot_table(index=['country_live','ide_main'],
+#                  values='age', aggfunc=['min','max'])).swaplevel(axis='columns')
 
-(df2.groupby(['country_live','ide_main'],observed=True)[['age']].agg(['min','max']))
+# (df2.groupby(['country_live','ide_main'],observed=True)[['age']].agg(['min','max']))
 
 
 # Chapter 27.6 Grouping with Functions
 
-def even_grouper(idx):
-    return 'odd' if idx % 2 else 'even'
+# def even_grouper(idx):
+#     return 'odd' if idx % 2 else 'even'
 
-df2.pivot_table(index=even_grouper, aggfunc='size')
+# df2.pivot_table(index=even_grouper, aggfunc='size')
 
-df2.groupby(even_grouper).size()
+# df2.groupby(even_grouper).size()
 
 # Chapter 27.8 Exercises
 import random
@@ -143,5 +143,33 @@ data = {
 
 # Create a DataFrame
 df = pd.DataFrame(data)
-df
+
+# Mean sales quantity by product category 
+df.groupby('Product')['Quantity'].agg('mean')
+
+# Mean sales quantity and max quantity by product category
+df.groupby('Product')['Quantity'].agg(['mean','max'])
+
+df.groupby('Product')['Quantity'].size()
+
+def find_mode(idx):
+    return pd.Series.mode(df['Product']).iloc[0] if df['Product'].iloc[idx] == pd.Series.mode(df['Product']).iloc[0] else 'Other'
+
+print(find_mode(26))
+
+df.groupby(find_mode)['Quantity'].agg('mean')
+
+df.groupby(['Product','Category'])['Sales'].agg('mean') # returns pandas series
+
+df.groupby(['Product','Category'])[['Sales']].agg('mean') #returns a pandas df
+
+
+df['Sales'] = df['Sales'].astype(float)
+df.groupby(['Product'])['Sales'].quantile(q=.5,interpolation='linear')
+
+def create_quartiles(idx):
+    return pd.qcut(idx,q=[0,0.25,0.5,0.75,1])
+
+df['sales_bucket'] = df.groupby('Product')['Sales'].transform(create_quartiles) #transform used instead of apply here because don't run into index issue
+df.groupby(['Product','sales_bucket'])['Sales'].agg('mean')
 # %%

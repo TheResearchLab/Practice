@@ -53,4 +53,20 @@ df2 = (
     .age
     .transform('size')))
 )
+
+# Chapter 28.2 Filtering Parts of Groups 
+countries_to_remove = (df2
+    .country_live
+    .value_counts()
+    .lt(126.5) # less than
+    .index
+) 
+
+(df2
+    .query('~country_live.isin(@countries_to_remove)')
+)
+
+(df2
+    .groupby('country_live')
+    .filter(lambda g: g.country_live.size >= 126.5))
 # %%

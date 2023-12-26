@@ -60,4 +60,11 @@ pd.crosstab(index=df2.country_live,columns=df2.age,normalize='index') # normaliz
             columns=[df2.use_python_most,df2.python3_version_most])
             .loc[['United States'],['Data analysis','Web development']])
 
+# Chapter 29.5 Heat Maps
+(pd.crosstab(index=[df2.country_live,df2.age],columns=[df2.use_python_most,df2.python3_version_most])
+    .loc[['United States'],['Data analysis','Web development']]
+    .style.background_gradient(cmap='viridis',axis=None))
+# %%
+
+
 # %%

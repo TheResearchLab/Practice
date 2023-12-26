@@ -69,4 +69,34 @@ countries_to_remove = (df2
 (df2
     .groupby('country_live')
     .filter(lambda g: g.country_live.size >= 126.5))
+
+
+# Chapter 28.4 Exercises
+
+# Creating numeric data
+numeric_data = {
+    'age': np.random.randint(18, 60, 10),
+    'salary': np.random.uniform(30000, 90000, 10),
+    'score': np.random.randint(0, 100, 10)
+}
+
+# Creating categorical data
+categories = ['A', 'B', 'C']
+categorical_data = {
+    'category': np.random.choice(categories, 10),
+    'gender': np.random.choice(['Male', 'Female'], 10)
+}
+
+# Combine numeric and categorical data
+data = {**numeric_data, **categorical_data}
+
+# Creating the DataFrame
+df = pd.DataFrame(data)
+
+df['category_avg_salary'] = df.groupby('category')['salary'].transform('mean')
+
+(df
+    .groupby('category')
+    .category 
+    .filter(lambda c:c.count() >= 3))
 # %%

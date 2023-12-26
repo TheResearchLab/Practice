@@ -50,4 +50,14 @@ pd.crosstab(index=df2.country_live,columns=df2.age,margins=True)
 pd.crosstab(index=df2.country_live,columns=df2.age,normalize=True)
 pd.crosstab(index=df2.country_live,columns=df2.age,normalize='columns') # normalize down column
 pd.crosstab(index=df2.country_live,columns=df2.age,normalize='index') # normalize across rows sum to 1
+
+# Chapter 29.4 Hierarchial Columns with Cross Tabs
+(pd.crosstab(index=[df2.country_live,df2.age],
+            columns=[df2.use_python_most,df2.python3_version_most])
+            .loc[['United States']])
+
+(pd.crosstab(index=[df2.country_live,df2.age],
+            columns=[df2.use_python_most,df2.python3_version_most])
+            .loc[['United States'],['Data analysis','Web development']])
+
 # %%

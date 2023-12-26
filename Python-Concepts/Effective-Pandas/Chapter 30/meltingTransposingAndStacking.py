@@ -21,5 +21,23 @@ scores.melt(id_vars=['name','age','teacher'],
             value_vars=['test1','test2'],
             var_name='test',value_name='scores')
 
+# Chapter 30.2 Un-melting Data
+melted = scores.melt(id_vars=['name','age','teacher'],
+            value_vars=['test1','test2'],
+            var_name='test',value_name='scores')
+
+(melted 
+    .pivot_table(index=['name','age','teacher'],columns='test',values='scores')) # unflattened
+
+(melted 
+    .pivot_table(index=['name','age','teacher'],columns='test',values='scores')).reset_index() # flattened
+
+# unmelting melted data
+(melted
+    .groupby(['name','age','teacher','test'])
+    .scores
+    .mean() 
+    .unstack()
+    .reset_index())
 
 # %%

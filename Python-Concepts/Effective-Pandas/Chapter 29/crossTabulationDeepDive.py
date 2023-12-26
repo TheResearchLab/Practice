@@ -42,4 +42,7 @@ df2 = (
 
 # Chapter 29.1 Cross-Tab Summaries
 pd.crosstab(index=df2.country_live,columns=df2.age)
+
+# Chapter 29.2 Adding Margins
+pd.crosstab(index=df2.country_live,columns=df2.age,margins=True)
 # %%

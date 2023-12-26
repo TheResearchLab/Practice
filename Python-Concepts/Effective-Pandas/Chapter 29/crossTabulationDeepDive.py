@@ -45,4 +45,9 @@ pd.crosstab(index=df2.country_live,columns=df2.age)
 
 # Chapter 29.2 Adding Margins
 pd.crosstab(index=df2.country_live,columns=df2.age,margins=True)
+
+# Chapter 29.3 Normalizing Results
+pd.crosstab(index=df2.country_live,columns=df2.age,normalize=True)
+pd.crosstab(index=df2.country_live,columns=df2.age,normalize='columns') # normalize down column
+pd.crosstab(index=df2.country_live,columns=df2.age,normalize='index') # normalize across rows sum to 1
 # %%

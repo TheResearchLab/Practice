@@ -18,5 +18,20 @@ def tweak_river(df_):
 
 # Apply the tweak_river function to the DataFrame
 dd = tweak_river(df)
-dd
+
+# Chapter 31.2 Adding Timezone Information
+dd.tz_cd
+
+def to_america_denver_time(df_,time_col,tz_col):
+    return(df_  
+              .assign(**{tz_col:df[tz_col].replace('MDT','MST7MDT')})
+              .groupby(tz_col)
+              [time_col]
+              .transform(lambda s: pd.datetime(s)
+                                        .dt.tz_localize(s.name,ambiguous=True)
+                                        .dt.tz_convert('America/Denver'))                        
+              
+    )
+
+
 # %%

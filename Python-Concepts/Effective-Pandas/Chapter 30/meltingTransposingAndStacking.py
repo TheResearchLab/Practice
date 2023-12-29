@@ -87,4 +87,13 @@ melted = scores.melt(id_vars=['name','age','teacher'],
     .head(10)
     .T)
 
+# Chapter 30.4 Stacking and Unstacking
+# (df2
+#     .groupby(['country_live','are_you_datascientist'])
+#     .size() # type error '<' not supported between instances of str and bool
+#     )
+
+
+
+
 # %%

@@ -119,4 +119,13 @@ melted = scores.melt(id_vars=['name','age','teacher'],
     .swaplevel()
 )
 
+# Chapter 30.6 Flattenting Hierarchial Indexes and Columns
+(df2
+    .groupby(['country_live','age'])
+    .agg('mean'))
+
+df3 = df2.set_index(['country_live','age'])
+df3.groupby(level=0,observed=True).mean()
+
+## Section has outdated code or something
 # %%

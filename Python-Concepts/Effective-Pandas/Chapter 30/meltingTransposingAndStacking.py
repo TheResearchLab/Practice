@@ -93,7 +93,30 @@ melted = scores.melt(id_vars=['name','age','teacher'],
 #     .size() # type error '<' not supported between instances of str and bool
 #     )
 
+# Chapter 30.5 Stacking
 
+# age and company size in index
+(df2
+    .pivot_table(index='country_live',
+                 aggfunc={'age':['min','max'],
+                          'company_size':['min','max']})
+    .stack(1)
+)
 
+# min max in index
+(df2
+    .pivot_table(index='country_live',
+                 aggfunc={'age':['min','max'],
+                          'company_size':['min','max']})
+    .stack(0)
+)
+
+(df2
+    .pivot_table(index='country_live',
+                 aggfunc={'age':['min','max'],
+                          'company_size':['min','max']})
+    .stack(1)
+    .swaplevel()
+)
 
 # %%

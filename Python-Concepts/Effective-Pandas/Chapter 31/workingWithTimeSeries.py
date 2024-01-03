@@ -76,48 +76,80 @@ import matplotlib.pyplot as plt
 # Chapter 31.5 Missing Timeseries Data
 
 
-(dd
-    [['cfs']]
-    .loc['2018/3':'2019/5']
-    .query('cfs.isna()')) # can call isna from within query
+# (dd
+#     [['cfs']]
+#     .loc['2018/3':'2019/5']
+#     .query('cfs.isna()')) # can call isna from within query
 
-fig,ax = plt.subplots(dpi=600,figsize=(10,4))
-dd_july = (dd
-    [['cfs']]
-    .loc['2018/7/7 11:00' :'2018/7/8 20:00']
-)
+# fig,ax = plt.subplots(dpi=600,figsize=(10,4))
+# dd_july = (dd
+#     [['cfs']]
+#     .loc['2018/7/7 11:00' :'2018/7/8 20:00']
+# )
 
-dd_july.plot(ax=ax, label='original',linewidth=2)
-(dd_july
-        .bfill()
-        .add(.05)
-        .plot(label='bfill',ax=ax, linewidth=.5))
+# dd_july.plot(ax=ax, label='original',linewidth=2)
+# (dd_july
+#         .bfill()
+#         .add(.05)
+#         .plot(label='bfill',ax=ax, linewidth=.5))
 
-(dd_july
-        .ffill()
-        .add(.1)
-        .plot(label='ffill',ax=ax,linewidth=.5))
+# (dd_july
+#         .ffill()
+#         .add(.1)
+#         .plot(label='ffill',ax=ax,linewidth=.5))
 
-(dd_july
-        .interpolate(method='polynomial',order=3)
-        .add(.15)
-        .plot(ax=ax,linewidth=.5))
+# (dd_july
+#         .interpolate(method='polynomial',order=3)
+#         .add(.15)
+#         .plot(ax=ax,linewidth=.5))
 
-(dd_july
-        .interpolate()
-        .add(.2)
-        .plot(ax=ax,linewidth=.5))
+# (dd_july
+#         .interpolate()
+#         .add(.2)
+#         .plot(ax=ax,linewidth=.5))
 
-(dd_july
-        .interpolate(method='nearest')
-        .add(.25)
-        .plot(ax=ax,linewidth=.5))
+# (dd_july
+#         .interpolate(method='nearest')
+#         .add(.25)
+#         .plot(ax=ax,linewidth=.5))
 
-(dd_july
-        .fillna(1)
-        .add(.3)
-        .plot(ax=ax,linewidth=.5))
+# (dd_july
+#         .fillna(1)
+#         .add(.3)
+#         .plot(ax=ax,linewidth=.5))
 
-ax.legend()
-ax.set_title('Filling Missing Data Demo')
+# ax.legend()
+# ax.set_title('Filling Missing Data Demo')
+
+# 31.6 Exploring Seasonality
+# (dd
+#     .groupby(dd.index.month)
+#     .cfs
+#     .describe())
+
+# fig,ax = plt.subplots(dpi=600,figsize=(10,4))
+# (dd
+#     .groupby(dd.index.month)
+#     ['cfs']
+#     .describe()
+#     ['mean']
+#     .plot.bar(ax=ax))
+
+# fig,ax = plt.subplots(dpi=600,figsize=(10,4))
+# (dd 
+#     .groupby(dd.index.month)
+#     ['cfs']
+#     .describe()
+#     .loc[:,'min':'75%']
+#     .plot.bar(ax=ax))
+
+import seaborn as sns
+
+dd = dd.loc[dd.index.drop_duplicates(keep=False)]
+
+fig, ax = plt.subplots(dpi=600, figsize=(10, 4))
+sns.boxplot(data=dd.assign(cfs=dd.cfs.clip(upper=400)),
+            x=dd.index.month.rename('Month'), y='cfs', ax=ax)
+
+
 # %%

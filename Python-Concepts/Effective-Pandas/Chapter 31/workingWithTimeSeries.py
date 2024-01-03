@@ -36,40 +36,88 @@ def to_america_denver_time(df_,time_col,tz_col):
 # Chapter 31.3 Exploring the Data
 import matplotlib.pyplot as plt 
 
-fig,ax= plt.subplots(dpi=600)
+# fig,ax= plt.subplots(dpi=600)
 # dd.cfs.plot()
 
 # dd.cfs.describe()
 
 # Chapter 31.4 Slicing Time Series
-(dd
-   .cfs 
-   .loc['2018':])
+# (dd
+#    .cfs 
+#    .loc['2018':])
+
+# (dd
+#    .cfs
+#    .loc['2018/03':'2019/05']
+#    .clip(upper=400)
+#    .plot())
+
+# dd2018 = (dd 
+#             .cfs 
+#             .loc['2018/3':'2019/5']
+#             .clip(upper=400))
+
+# ax = (dd2018 
+#             .resample('D')
+#             .mean()
+#             .plot(figsize=(10,4),alpha=.5,linewidth=1,label='Daily')
+#             )
+
+# ax = (dd2018
+#             .resample('D')
+#             .mean()
+#             .rolling(7)
+#             .mean()
+#             .plot(figsize=(10,4),ax=ax,label='7-day Rolling'))
+
+# ax.legend()
+# ax.set_title('Dirty Devil Flow 2018 (cfs)')
+
+# Chapter 31.5 Missing Timeseries Data
+
 
 (dd
-   .cfs
-   .loc['2018/03':'2019/05']
-   .clip(upper=400)
-   .plot())
+    [['cfs']]
+    .loc['2018/3':'2019/5']
+    .query('cfs.isna()')) # can call isna from within query
 
-dd2018 = (dd 
-            .cfs 
-            .loc['2018/3':'2019/5']
-            .clip(upper=400))
+fig,ax = plt.subplots(dpi=600,figsize=(10,4))
+dd_july = (dd
+    [['cfs']]
+    .loc['2018/7/7 11:00' :'2018/7/8 20:00']
+)
 
-ax = (dd2018 
-            .resample('D')
-            .mean()
-            .plot(figsize=(10,4),alpha=.5,linewidth=1,label='Daily')
-            )
+dd_july.plot(ax=ax, label='original',linewidth=2)
+(dd_july
+        .bfill()
+        .add(.05)
+        .plot(label='bfill',ax=ax, linewidth=.5))
 
-ax = (dd2018
-            .resample('D')
-            .mean()
-            .rolling(7)
-            .mean()
-            .plot(figsize=(10,4),ax=ax,label='7-day Rolling'))
+(dd_july
+        .ffill()
+        .add(.1)
+        .plot(label='ffill',ax=ax,linewidth=.5))
+
+(dd_july
+        .interpolate(method='polynomial',order=3)
+        .add(.15)
+        .plot(ax=ax,linewidth=.5))
+
+(dd_july
+        .interpolate()
+        .add(.2)
+        .plot(ax=ax,linewidth=.5))
+
+(dd_july
+        .interpolate(method='nearest')
+        .add(.25)
+        .plot(ax=ax,linewidth=.5))
+
+(dd_july
+        .fillna(1)
+        .add(.3)
+        .plot(ax=ax,linewidth=.5))
 
 ax.legend()
-ax.set_title('Dirty Devil Flow 2018 (cfs)')
+ax.set_title('Filling Missing Data Demo')
 # %%

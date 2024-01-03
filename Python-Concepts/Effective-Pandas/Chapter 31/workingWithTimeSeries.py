@@ -33,5 +33,13 @@ def to_america_denver_time(df_,time_col,tz_col):
               
     )
 
+# Chapter 31.3 Exploring the Data
+import matplotlib.pyplot as plt 
+
+fig,ax= plt.subplots(dpi=600)
+dd.cfs.plot()
+
+dd.cfs.describe()
+
 
 # %%

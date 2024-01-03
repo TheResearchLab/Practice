@@ -37,9 +37,39 @@ def to_america_denver_time(df_,time_col,tz_col):
 import matplotlib.pyplot as plt 
 
 fig,ax= plt.subplots(dpi=600)
-dd.cfs.plot()
+# dd.cfs.plot()
 
-dd.cfs.describe()
+# dd.cfs.describe()
 
+# Chapter 31.4 Slicing Time Series
+(dd
+   .cfs 
+   .loc['2018':])
 
+(dd
+   .cfs
+   .loc['2018/03':'2019/05']
+   .clip(upper=400)
+   .plot())
+
+dd2018 = (dd 
+            .cfs 
+            .loc['2018/3':'2019/5']
+            .clip(upper=400))
+
+ax = (dd2018 
+            .resample('D')
+            .mean()
+            .plot(figsize=(10,4),alpha=.5,linewidth=1,label='Daily')
+            )
+
+ax = (dd2018
+            .resample('D')
+            .mean()
+            .rolling(7)
+            .mean()
+            .plot(figsize=(10,4),ax=ax,label='7-day Rolling'))
+
+ax.legend()
+ax.set_title('Dirty Devil Flow 2018 (cfs)')
 # %%

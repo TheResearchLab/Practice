@@ -144,12 +144,18 @@ import matplotlib.pyplot as plt
 #     .plot.bar(ax=ax))
 
 import seaborn as sns
+import numpy as np
+#dd = dd.loc[dd.index.drop_duplicates(keep=False)]
 
-dd = dd.loc[dd.index.drop_duplicates(keep=False)]
+# fig, ax = plt.subplots(dpi=600, figsize=(10, 4))
+# sns.boxplot(data=dd.assign(cfs=dd.cfs.clip(upper=400)),
+#             x=dd.index.month.rename('Month'), y='cfs', ax=ax)
 
-fig, ax = plt.subplots(dpi=600, figsize=(10, 4))
-sns.boxplot(data=dd.assign(cfs=dd.cfs.clip(upper=400)),
-            x=dd.index.month.rename('Month'), y='cfs', ax=ax)
+# Chapter 31.7 Resampling Data
+(dd
+    .resample('D',level=0) # doesn't work anymore
+    .median()
+)
 
 
 # %%

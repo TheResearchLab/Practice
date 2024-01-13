@@ -62,5 +62,68 @@ def do_things(a,b):
 arr = ['Hi','Mom']
 do_things(*arr)
 
+# Grab excess Items
+
+a,b,*c = range(5)
+c # returns 2,3,4
+
+a,*b,c = range(7)
+a # return 0
+c # returns 6
+b # returns 1-5 
+
+# UNPACKING WITH * IN FUNCTION AND SEQUENCE LITERALS
+
+def func(a,b,c,*rest):
+    return a,b,c,rest
+
+output = func(*range(7))
+output
+
+# NESTED UNPACKING
+
+locations = [
+    ('Tokyo', 'JP', 36.933, (35.689722, 139.691667)),
+    ('Delhi NCR', 'IN', 21.935, (28.613889, 77.208889)),
+    ('Mexico City', 'MX', 20.142, (19.433333, -99.133333)),
+    ('New York-Newark', 'US', 20.104, (40.808611, -74.020386)),
+    ('São Paulo', 'BR', 19.649, (-23.547778, -46.635833)),
+]
+
+def nested_unpacker():
+    for name,_,_,(lat,lon) in locations:
+        if lon > 0:
+            print(f'{name:15}|{lat:9.4f}|{lon:9.4f}')
+
+nested_unpacker()
+
+var1 = ((4),) # if you forget this then the worst error message is populated
+type(var1)
+
+# PATTERN MATCHING WITH SEQUENCES
+
+def pattern_matcher(message):
+    match message:
+        case ['BEEPEER',frequency,times]:
+            print(f'Beeping at {frequency} for {times} times.')
+        case ['LED',computer]:
+            print('my led {computer} is my new favorite')
+        case [name,*extra,(lat,lon)]:
+            print(f'{name} at {lat,lon} and all this other stuff {extra} (first)')
+        case [str(name),*_,(lat,lon)]:
+            print(f'{name} at {lat,lon} (second)')
+        case [name,_,_,(lat,lon) as coord]:
+            print(f'{name} at {coord}')
+        case _:
+            print('invalid message')
+
+
+pattern_matcher(['BEEPEER','23hz',4])
+pattern_matcher('hi mom')
+pattern_matcher(('Tokyo', 'JP', 36.933, (35.689722, 139.691667)))
+
+
+
+
 # %%
 

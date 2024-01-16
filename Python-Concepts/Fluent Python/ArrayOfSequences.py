@@ -118,11 +118,54 @@ def pattern_matcher(message):
             print('invalid message')
 
 
-pattern_matcher(['BEEPEER','23hz',4])
-pattern_matcher('hi mom')
-pattern_matcher(('Tokyo', 'JP', 36.933, (35.689722, 139.691667)))
+# pattern_matcher(['BEEPEER','23hz',4])
+# pattern_matcher('hi mom')
+# pattern_matcher(('Tokyo', 'JP', 36.933, (35.689722, 139.691667)))
+
+# SLICING
+s = 'bicycle'
+s[::-1]
+s[::3]
+
+# ASSIGNING TO SLICES
+l = list(range(10))
+l[0::2] = [4,4,4,4,4] # returns an error unless all values explicitly given
+del l[0::2] # delete specific values
+l
+
+s = [1,2,3] * 5
+s
+
+[[1]] * 4
+
+# BUILDING A LIST OF LIST
+ttt_board = [['_'] * 3 for i in range(3)] # list comprehension is the way to go
+ttt_board[2][0] = 'X'
+ttt_board
+
+weird_board=[['_'] * 3] * 3
+weird_board=[2][0] = 'X'
+weird_board
+
+# AUGMENTED ASSIGNMENTS WITH SEQUENCES
+l = [3,2,1]
+print(id(l))
+l+=l
+print(id(l)) # same reference
+i = (3,2,1)
+print(id(i))
+i+=i
+print(id(i)) # different reference
 
 
+# A+=ASSIGNMENT PUZZLER
+t=(1,2,[20,30])
+#t[2] += [40,50] # tuple object does not support item assignment
+
+t[2][0] = 3
+t
+
+# list.sort VERSUS THE SORTED BUILT-IN (pg 57)
 
 
 # %%

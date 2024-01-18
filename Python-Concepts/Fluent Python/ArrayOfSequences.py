@@ -248,5 +248,7 @@ dq
 dq.extendleft([10,20,30,40]) # extends to the front of the deque data structure
 dq
 
+# CHAPTER SUMMARY
+hash([]) # great way to validate
 # %%
 

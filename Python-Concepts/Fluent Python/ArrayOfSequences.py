@@ -166,7 +166,87 @@ t[2][0] = 3
 t
 
 # list.sort VERSUS THE SORTED BUILT-IN (pg 57)
+lst = [9,4,1,6,7]
+print(id(lst))
+lst_sorted_func = sorted(lst)
+lst.sort() # maintains id after sorting
+print(lst.sort()) # returns None
+print(lst)
+print(id(lst))
 
+fruits = ['apple','banana','grape','raspberry','melon','strawberry']
+sorted(fruits,key=len,reverse=True)
+
+# ARRAYS 
+from array import array
+from random import random 
+# floats = array('d',(random() for i in range(10**7))) # typecode 'd' double-precison float
+# floats[-1]
+
+
+# fp = open('floats.bin','wb')
+# floats.tofile(fp)
+# fp.close()
+
+# floats2 = array('d')
+# fp = open('floats.bin','rb')
+# floats2.fromfile(fp,10**7)
+# fp.close()
+# floats2[-1]
+# floats == floats
+# #floats.sort() # this is not available as of python 3.10
+
+# # should rebuild the array using sorted instead
+# floats = array(floats.typecode,sorted(floats))
+# len(floats)
+
+# MEMORY VIEWS 
+
+# octets = array('B',range(6))
+# m1 = memoryview(octets)
+# m1.tolist()
+# m2 = m1.cast('B',[3,2])
+# m3 = m1.cast('B',[2,3])
+# m2.tolist()
+# m3.tolist()
+# m2[1,1] = 25
+# m2.tolist()
+
+# numbers = array('h',list(range(-2,3,1)))
+# memv = memoryview(numbers)
+# memv[0]
+# memv_oct = memv.cast('B')
+# memv_oct.tolist()
+# memv_oct[5] = 22
+# numbers
+
+# Arrays 
+# import numpy as np 
+# a = np.arange(12)
+# a
+# a.shape
+# a.shape = 3,4 # reshape the array by changing the object shape property
+# a
+# a[2] 
+
+# a[:,1] # grabs the column at index 1
+
+# a.transpose() # this is sweet 
+
+# DEQUE AND OTHER QUEUES
+
+from collections import deque 
+dq = deque(range(10),maxlen=10)
+dq
+dq.rotate(2)
+dq.rotate(-2)
+dq
+dq.rotate(-4)
+dq.rotate(4)
+dq.extend([11,22,33]) # pops off values from ends
+dq 
+dq.extendleft([10,20,30,40]) # extends to the front of the deque data structure
+dq
 
 # %%
 

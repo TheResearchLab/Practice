@@ -61,7 +61,55 @@ tt = [1,2,3,4,5,5]
 tf = (1,2,frozenset([10,20]))
 hash(tf)
 
-# INSERTING OR UPDATING MUTABLE VALUES
+# The __missing__ Method
 
+class StrKeyDict0(dict):
+    def __missing__(self,key):
+        if isinstance(key,str):
+            raise KeyError(key)
+        return self[str(key)]
+        
+    def get(self,key,default=None):
+        try:
+            return self[key]
+        except:
+            return default
+        
+    def __contains__(self,key):
+        return key in self.keys() or str(key) in self.keys()
+
+
+# Collections.ChainMap
+    
+d1 = dict(a=1,b=2)
+d2 = dict(a=2, b=4, c=6)
+
+from collections import ChainMap
+chain = ChainMap(d1,d2)
+chain['a'] # retreives value from first dict
+chain['a'] = 5
+d1 # updating the chain map only impacts the first dictionary
+
+# COLLECTIONS.COUNTER
+from collections import Counter 
+
+cnt_dict = Counter('aabbccdefggghijklmnopppqrstuuvwxyzz')
+cnt_dict.most_common(2) # gets counts and returns the most common
+
+# USERDICT vs DICT
+import collections
+class StrKeyDict(collections.UserDict):
+    def __missing__(self,key):
+        if isinstance(key,str):
+            raise KeyError(key)
+        return self[str(key)]
+    
+    def __contains__(self,key):
+        return str(key) in self.data
+    
+    def __setitem__(self,key, item):
+        self.data[str(key)] = item 
+
+        
 
 # %%

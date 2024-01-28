@@ -110,6 +110,17 @@ class StrKeyDict(collections.UserDict):
     def __setitem__(self,key, item):
         self.data[str(key)] = item 
 
-        
+# IMMUTABLE MAPPINGS
+
+from types import MappingProxyType
+
+d = {1:'A'}
+d_proxy = MappingProxyType(d)
+
+d_proxy # instance of mappingproxy type
+
+#d_proxy[2] = 'A' # this errors because mapping proxy types are read only
+d[2] = 'A'
+d_proxy # however it will still show the changes of the underlying mapping
 
 # %%

@@ -15,16 +15,47 @@ calc_stdev([220.1,220.4,220.2,220.0,220.1]) # not good
 
 
 def calc_iqr(lst):
+    lst = sorted(lst)
+    
+    def find_median(lst):
+        length = len(lst)
+        if length % 2 == 1: # odds
+            return lst[length//2]
+        
+        else: # even 
+            mid_left = lst[length//2-1]
+            mid_right = lst[length//2]
+            return mean([mid_left,mid_right])
+
+            
+    
     length = len(lst)
+    
     # if the data is odd
-    if length % 2 != 0:
-        cnts = int((length -1) / 2)
-        print(cnts)
-        q1_index = lst[:cnts]
-        q3_index = lst[cnts+1:] 
+    if length % 2 == 1:
+        cnts = (length -1) // 2
+        q1 = lst[:cnts]
+        q3 = lst[cnts+1:]
 
-    return q1_index,q3_index
     # if the data is even
+    else:
+        q1_index = len(lst)//2-1
+        q3_index = len(lst)//2
+        q1 = lst[:q1_index]
+        q3 = lst[q3_index+1:]
+        
 
-print(calc_iqr([1,2,3,4,5,6,7,8,9]))
+
+    return find_median(q1),find_median(q3),find_median(lst)
+    
+
+
+arr = [1,2,3,4,5]
+print(calc_iqr(arr))
+
+# print(arr[len(arr)//2-1])
+# print(arr[len(arr)//2])
+
+
+
 # %%

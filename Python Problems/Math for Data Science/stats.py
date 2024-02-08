@@ -59,3 +59,27 @@ print(calc_iqr(arr))
 
 
 # %%
+
+import random
+
+# Define the list of elements (population)
+population = list(range(1, 101))
+
+# Define the number of clusters and cluster size
+num_clusters = 3
+cluster_size = 10
+
+# Randomly select clusters
+selected_clusters = random.sample(population, num_clusters)
+
+# Sample individuals within each selected cluster
+sampled_data = []
+for cluster in selected_clusters:
+    cluster_data = random.sample(range(cluster, cluster + cluster_size), cluster_size)
+    sampled_data.extend(cluster_data)
+
+print("Sampled data:")
+print(sampled_data)
+
+
+# %%

@@ -123,4 +123,50 @@ d_proxy # instance of mappingproxy type
 d[2] = 'A'
 d_proxy # however it will still show the changes of the underlying mapping
 
+# DICTIONARY VIEWS
+#values_class = type({}.values())
+#v = values_class() # cannot create 'dict_values' instances, it is a dynamic proxy
+
+# SET THEORY
+l = ['apple','apple','orange','pear','peach','peach']
+list(dict.fromkeys(l).keys()) # deduplicates while preserving the order.
+
+
+# SET LITERALS 
+
+# create an empty set
+s = set()
+type(s)
+
+# create a populated set
+s = {1,2,3} # can't do s = {} to create an empty set. Will only create a dict
+type(s)
+
+# creating a frozen set
+fs = frozenset(range(10))
+fs
+
+# SET COMPREHENSIONS
+l = list(range(9)) + list(range(9))
+sc = {num for num in l}
+sc # creates a set from list with duplicates
+
+# SET OPERATIONS
+a = range(2,10,2)
+b = range(0,4,1)
+c = range(12,24,2)
+d = range(100,39,-4)
+
+s = {*a,*b,*c,*d} # creates a set from 4 iterables
+s 
+
+# complement of the intersection
+set(a) ^ set(b)
+
+
+# SET OPERATIONS ON DICT VIEWS
+d1 = dict(a=1,b=2,c=3,d=4)
+d2 = dict(b=20,d=40,e=50)
+d1.keys() & d2.keys()
+
 # %%

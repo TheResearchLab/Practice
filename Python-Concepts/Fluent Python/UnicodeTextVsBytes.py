@@ -120,6 +120,11 @@ print(my_locale)
 sorted_fruits = sorted(fruits,key = locale.strxfrm)
 print(sorted_fruits) #properly sorts ignoring accents
 
+import os
+# STR VERSUS BYTES IN OS FUNCTIONS
+os.listdir('.')
+os.listdir(b'.') # byte argument to return bytes in file name
+
 
 
 # %%

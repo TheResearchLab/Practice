@@ -84,93 +84,161 @@
 # grand_rapids.age() # this is wild, can create methods outside of class and associated to namedTuple
 
 # TYPED NAMED TUPLES
-from typing import NamedTuple
+# from typing import NamedTuple
 
-class Coordinate(NamedTuple):
-    lat: float
-    lon: float
-    reference: str = 'WGS84'
+# class Coordinate(NamedTuple):
+#     lat: float
+#     lon: float
+#     reference: str = 'WGS84'
 
-# TYPE HINTS 101
+# # TYPE HINTS 101
 
-class Coordinate(NamedTuple):
-    lat: float
-    lon: float
+# class Coordinate(NamedTuple):
+#     lat: float
+#     lon: float
 
-trash = Coordinate('Not Float',None)
-print(trash) # No runtime impact just nonsense
-
-
-# The Meaning of Variable Annotations
-
-class DemoPlainClass:
-    a: int
-    b: float = 1.1
-    c = 'spam'
-
-DemoPlainClass.__annotations__
-#DemoPlainClass.a # no variable for A created just annotation
-
-# Inspecting a typing.NamedTuple
-
-class DemoNTClass(NamedTuple):
-    a: int
-    b: float = 1.1
-    c = 'spam'
-
-DemoNTClass.a # in namedtuple a variable placeholder is added
+# trash = Coordinate('Not Float',None)
+# print(trash) # No runtime impact just nonsense
 
 
-nt = DemoNTClass(5,2) # don't understand why attribute c can't be updated
-print(nt.a,nt.b,nt.c)
+# # The Meaning of Variable Annotations
 
-# Inspecting a class decorated with dataclass
+# class DemoPlainClass:
+#     a: int
+#     b: float = 1.1
+#     c = 'spam'
 
-from dataclasses import dataclass
+# DemoPlainClass.__annotations__
+# #DemoPlainClass.a # no variable for A created just annotation
 
-@dataclass
-class DemoDataClass:
-    a: int 
-    b: float = 1.1 
-    c = 'spam'
+# # Inspecting a typing.NamedTuple
 
-DemoDataClass.__annotations__
-DemoDataClass.__doc__
-#DemoDataClass.a # no attribute
-DemoDataClass.b
-DemoDataClass.c
+# class DemoNTClass(NamedTuple):
+#     a: int
+#     b: float = 1.1
+#     c = 'spam'
 
-dc = DemoDataClass(4)
-dc.a
-dc.b
-dc.b = 12
-dc.b
-dc.k = 'blah'
-dc.k # dataclass is mutable
+# DemoNTClass.a # in namedtuple a variable placeholder is added
 
-# MORE ABOUT @DATACLASS
+
+# nt = DemoNTClass(5,2) # don't understand why attribute c can't be updated
+# print(nt.a,nt.b,nt.c)
+
+# # Inspecting a class decorated with dataclass
+
+# from dataclasses import dataclass
+
+# @dataclass
+# class DemoDataClass:
+#     a: int 
+#     b: float = 1.1 
+#     c = 'spam'
+
+# DemoDataClass.__annotations__
+# DemoDataClass.__doc__
+# #DemoDataClass.a # no attribute
+# DemoDataClass.b
+# DemoDataClass.c
+
+# dc = DemoDataClass(4)
+# dc.a
+# dc.b
+# dc.b = 12
+# dc.b
+# dc.k = 'blah'
+# dc.k # dataclass is mutable
+
+# # MORE ABOUT @DATACLASS
+
+# # @dataclass
+# # class ClubMember:
+# #     name: str 
+# #     guest: list = []
+
+# # errors because dataclass uses default values in type hints
+
+# from dataclasses import field, dataclass
 
 # @dataclass
 # class ClubMember:
-#     name: str 
-#     guest: list = []
+#     name: str
+#     guest: list = field(default_factory=list)
 
-# errors because dataclass uses default values in type hints
+# @dataclass 
+# class ClubMember:
+#     name: str
+#     guests: list = field(default_factory=list)
+#     athlete: bool = field(default=False,repr=False) # default value to false and remove from repr method
 
-from dataclasses import field
+
+# # POST INIT PROCESSING
+
+# @dataclass
+# class HackerClubMember(ClubMember):
+#     all_handles = set()
+#     handle: str = ''
+
+#     def __post_init__(self):
+#         cls = self.__class__
+#         if self.handle == '':
+#             self.handle = self.name.split()[0]
+#         if self.handle in cls.all_handles:
+#             msg = f'handle {self.handle!r} already exists.'
+#             raise ValueError(msg)
+#         cls.all_handles.add(self.handle)
+
+
+# c1 = HackerClubMember('Sir Corriandor')
+# c2 = HackerClubMember('Mrs Vicky',handle='blah')
+# c3 = HackerClubMember('Mr Karl',handle='blah') # class tracks the class overall
+
+# DUBLIN CORE RESOURCE EXAMPLE
+from dataclasses import dataclass, field
+from typing import Optional
+from enum import Enum, auto 
+from datetime import date 
+
+class ResourceType(Enum):
+    BOOK = auto()
+    EBOOK = auto()
+    VIDEO = auto()
 
 @dataclass
-class ClubMember:
-    name: str
-    guest: list = field(default_factory=list)
+class Resource:
+    """ Media resource description"""
+    identifier:str
+    title: str = '<untitled>'
+    creators: list[str] = field(default_factory=list)
+    date: Optional[date] = None
+    type: ResourceType = ResourceType.BOOK
+    description: str = ''
+    language: str = ''
+    subjects: list[str] = field(default_factory=list)
 
-@dataclass 
-class ClubMember:
-    name: str
-    guests: list = field(default_factory=list)
-    athlete: bool = field(default=False,repr=False) # default value to false and remove from repr method
+    # def __repr__(self):
+    #     cls = self.__class__
+    #     cls_name = cls.__name__
+    #     indent = ' ' * 4
+    #     res = [f'{cls_name}(']
+    #     for f in fields(cls):
+    #         value = getattr(self,f.name)
+    #         res.append(f'{indent}{f.name} = {value!r},')
+    #     res.append(')')
+    #     return '\n'.join(res)
 
 
+
+description = 'Improving the design of existing code'
+
+book = Resource('978-0-13-475759-9', 'Refactoring, 2nd Edition',
+['Martin Fowler', 'Kent Beck'], date(2018, 11, 19),
+ResourceType.BOOK, description, 'EN',
+['computer programming', 'OOP'])
+book # doctest: +NORMALIZE_WHITESPACE
+
+# PATTERN MATCHING CLASS INSTANCES
+
+# Simple Class Patterns
 
 
 # %%

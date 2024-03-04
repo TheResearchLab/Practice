@@ -83,4 +83,46 @@ for city in sorted(metro_data,key=itemgetter(1)):
 cc_name = itemgetter(1,0)
 for city in metro_data:
     print(cc_name(city))
+
+
+from collections import namedtuple
+
+LatLon = namedtuple('LatLon','lat lon')
+Metropolis = namedtuple('Metropolis', 'name cc pop coord')
+metro_areas = [Metropolis(name,cc,pop,LatLon(lat,lon))
+    for name, cc, pop,(lat,lon) in metro_data]
+
+
+metro_areas[0]
+metro_areas[0].coord.lat
+
+from operator import attrgetter 
+
+name_lat = attrgetter('name','coord.lat')
+
+for city in sorted(metro_areas,key=attrgetter('coord.lat')):
+    print(name_lat(city))
+
+# methodcaller
+    
+from operator import methodcaller
+
+s = 'The time has come'
+upcase = methodcaller('upper')
+upcase(s)
+hyphenate = methodcaller('replace','','-')
+hyphenate(s)
+
+# FREEZING ARGUMENTS WITH FUNCTOOLS
+from operator import mul 
+from functools import partial 
+triple = partial(mul,3)
+triple(7)
+
+list(map(triple,range(0,11)))
+
+triple.func
+triple.args
+triple.keywords
+
 # %%

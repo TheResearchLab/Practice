@@ -13,6 +13,18 @@ def calc_stdev(lst:list) -> float:
 calc_stdev([220.1,220.0,220.0,220.2,220.1]) # good
 calc_stdev([220.1,220.4,220.2,220.0,220.1]) # not good
 
+def find_median(lst:list) -> float:
+    length = len(lst)
+    if length % 2 == 1: # odds
+        return lst[length//2]
+        
+    else: # even 
+        mid_left = lst[length//2-1]
+        mid_right = lst[length//2]
+        return mean([mid_left,mid_right])
+
+
+
 
 def calc_iqr(lst):
     lst = sorted(lst)
@@ -143,3 +155,11 @@ plt.show()
 
 
 # %%
+
+def get_mean(lst:list) -> float:
+    return sum(lst)/len(lst)
+
+nums = [1,2,3,4,5,5,6,7,100]
+get_mean(nums)
+# %%
+

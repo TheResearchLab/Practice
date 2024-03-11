@@ -8,3 +8,4 @@ FastAPI/venv
 Streamlit-Basketball-App/Airplane_Scheduler/airplane.dev.yaml
 venv/
 Financial-DB/api_key.txt
+Financial-DB/.env

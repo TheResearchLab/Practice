@@ -39,7 +39,43 @@ def double(x:object) -> object: # this breaks mypy because object doesn't suppor
 def tokenize(text: str) -> list[str]:
     return text.upper().split()
 
-# GENERIC MAPPINGS
+
+# TYPE ALIASES
+from typing import TypeAlias 
+
+FromTo: TypeAlias = tuple[str,str] # creates a type alias for this custom type, more readable
+
+from collections.abc import Sequence, Iterable, Hashable
+from random import shuffle 
+from typing import TypeVar 
+
+T = TypeVar('T') # nasty, type var needs to be introduce in namespace before it can be used
+
+def sample(population: Sequence[T], size: int) -> list[T]:
+    if size < 1:
+        raise ValueError('size must be >= 1')
+    result = list(population)
+    shuffle(result)
+    return result[:size]
+
+from decimal import Decimal
+from fractions import Fraction
+from collections import Counter
+
+HashableT = TypeVar('HashableT',bound=Hashable)
+
+def mode(data: Iterable[HashableT]) -> HashableT:
+    pairs = Counter(data).most_common(1)
+    if len(pairs) == 0:
+        raise ValueError('no mode for empty data')
+    return pairs[0][0]
+
+AnyStr = TypeVar('AnyStr',bytes,str)
+
+
+
+
+
 
 
 # %%

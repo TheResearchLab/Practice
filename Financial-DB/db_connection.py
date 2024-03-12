@@ -1,5 +1,6 @@
 import os 
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine,text
+from sqlalchemy.orm import sessionmaker
 import mysql.connector as sql
 from dotenv import load_dotenv
 
@@ -21,4 +22,5 @@ conn = sql.connect(host=host,
 
 mycursor = conn.cursor()
 engine = create_engine(f"mysql+mysqlconnector://{user}:{password}@{host}/{database}")
-
+Session = sessionmaker(bind=engine)
+session = Session() 

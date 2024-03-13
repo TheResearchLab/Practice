@@ -163,3 +163,53 @@ nums = [1,2,3,4,5,5,6,7,100]
 get_mean(nums)
 # %%
 
+import numpy as np
+import matplotlib.pyplot as plt
+
+# Generate sample data
+x = np.random.rand(100)
+y = 2 * x + np.random.normal(0, 0.1, 100)
+
+# Calculate Pearson correlation coefficient
+corr_coef = np.corrcoef(x, y)[0, 1]
+
+# Plot the data
+plt.scatter(x, y)
+plt.title('Scatter Plot of X and Y')
+plt.xlabel('X')
+plt.ylabel('Y')
+plt.text(0.1, 2, f'Pearson Correlation: {corr_coef:.2f}', fontsize=12, color='red')
+plt.grid(True)
+plt.show()
+# %%
+
+import numpy as np
+import matplotlib.pyplot as plt
+import math
+
+def student_t_pdf(t, nu):
+    numerator = math.gamma((nu + 1) / 2)
+    denominator = math.sqrt(nu * math.pi) * math.gamma(nu / 2)
+    term = (1 + (t ** 2) / nu) ** (-(nu + 1) / 2)
+    return numerator / denominator * term
+
+# Define range of t values
+t_values = np.linspace(-5, 5, 1000)
+
+# Degrees of freedom parameter
+nu = 5
+
+# Calculate PDF values for each t value
+pdf_values = [student_t_pdf(t, nu) for t in t_values]
+
+# Plot the PDF
+plt.figure(figsize=(15, 6))
+plt.plot(t_values, pdf_values, label=f'Student\'s t-distribution (ν={nu})')
+plt.title('PDF of Student\'s t-distribution')
+plt.xlabel('t')
+plt.ylabel('Probability Density')
+plt.legend()
+plt.grid(True)
+plt.show()
+
+# %%

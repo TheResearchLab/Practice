@@ -190,5 +190,128 @@ fibonacci(6)
 
 # %%
 
-# LRU_CACHE
+# PARAMETERIZED DECORATORS
 
+# Not parameterized
+registry = []
+
+def register(func):
+    print(f'running register({func})')
+    registry.append(func)
+    return func
+
+@register
+def f1():
+    print('running f1()')
+
+print('running main()')
+print('registry ->',registry)
+f1()
+
+# Parameterized
+
+registry = set()
+
+def register(active=True):
+    def decorate(func):
+        print('running register'
+              f'active={active}->decorate({func})')
+        if active:
+            registry.add(func)
+        else:
+            registry.discard(func)
+        return func 
+    return decorate 
+
+@register(active=False)
+def f1():
+    print('running f1()')
+
+@register(active=True)
+def f2():
+    print('running f2()')
+
+def f3():
+    print('running f3')
+
+f1()
+f2()
+f3()
+
+registry
+
+# register without decorator
+register()(f3)
+register(active=False)(f2) # removes f2 from registry
+registry
+
+
+
+# %%
+# Parameterized Clock Decorator
+
+import time 
+
+DEFAULT_FMT = '[{elapsed:0.8f}s] {name}({args}) -> {result}'
+
+def clock(fmt=DEFAULT_FMT):
+    def decorate(func):
+        def clocked(*_args):
+            t0 = time.perf_counter()
+            _result = func(*_args)
+            elapsed = time.perf_counter() - t0 
+            name = func.__name__
+            args = ', '.join(repr(arg) for arg in _args)
+            result = repr(_result)
+            print(fmt.format(**locals()))
+            return _result 
+        return clocked 
+    return decorate 
+
+@clock()
+def snooze(seconds):
+    time.sleep(seconds)
+
+for i in range(3):
+    snooze(.123)
+
+@clock('{name}: {elapsed}s') # would need to know function has these variables
+def snooze(seconds):
+    time.sleep(seconds)
+
+for i in range(3):
+    snooze(.123)
+# %%
+    
+# A CLASS-BASED CLOCK DECORATOR
+
+DEFAULT_FMT = '[{elapsed:0.8f}s] {name}({args}) -> {result}'
+
+class clock:
+    def __init__(self, fmt=DEFAULT_FMT):
+        self.fmt = fmt 
+    
+    def __call__(self,func):
+        def clocked(*_args):
+            t0 = time.perf_counter()
+            _result = func(*_args)
+            elapsed = time.perf_counter() - t0 
+            name = func.__name__
+            args = ', '.join(repr(arg) for arg in _args)
+            result = repr(_result)
+            print(self.fmt.format(**locals()))
+            return _result 
+        return clocked 
+    
+
+clock_deco = clock()
+
+@clock_deco # __call__ makes this clock instance callable
+def snooze(seconds):
+    time.sleep(seconds)
+
+snooze(.123)
+
+
+
+# %%

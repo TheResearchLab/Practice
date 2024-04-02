@@ -119,3 +119,84 @@ if __name__ == '__main__':
 
 
 # %%
+
+
+# Assumption 1 - Independent and Dependent Variables of the Model are Continuous
+
+
+
+start_dt = datetime(2023,01,01)
+today = start_dt + timedelta(100) # input is arbitrary can be any timeframe 
+
+
+class DriverTable:
+    
+    def __init__(self,start_dt,increment,num_rows):
+        pass
+
+    @property
+    def next_beg_dt():
+        pass 
+
+    @property
+    def next_end_dt():
+        pass
+
+    def insert(self):
+        """ Adds A New Row To Table For Future Run."""
+        pass
+    
+    def update(self,model,eval_dict,env_deps):
+        """ Update Driver Table Given Some Output From Model Training."""
+        # model train output
+        # model evaluation dict
+        # env deps
+        # has run flag
+        pass
+
+    def predict(self):
+        pass 
+
+
+class MyLinearModel:
+
+    def __init__(self):
+        """ Creates Simple Linear Regression Model For Example"""
+        pass
+
+    def train(self,X_train,y_train): #Update model pkl object attribute
+        pass 
+
+    def evaluate(self,X_test,y_test): #Update evaluation dict object attribute
+        pass
+    
+    @staticmethod
+    def get_env_dependencies() -> str: 
+        """ Outputs Pip Freeze Results As Dict or String """
+
+
+class DataGenerator:
+
+    def __init__(self,start_dt,num_rows,num_cols):
+        """ Generate Random Dataset For Use Case"""
+        pass
+
+    def get_training_data(self,beg_dt,end_dt) -> Tuple[pd.DataFrame,pd.Series,pd.DataFrame,pd.Series]:
+        """ Return X and y Train & Test Data """
+        pass 
+
+    def generate_rows(self,num_rows):
+        """ Simulates Data Generation Process """
+    
+
+
+# PART 1 - create model and predict using driver table
+# create driver table & create synthetic data objects
+# get train data from DataGenerator based on DriverTable beg and end_dts
+# train MyLinearModel and input those object outputs into the DriverTable update method
+# predict with the model from the DriverTable update
+
+# PART 2 - create another model and compare models against each other
+# insert 2 new rows into the DriverTable object and generate more rows for DataGenerator
+# repeat steps from PART 1 to generate another model
+# compare model evaluations and dependencies (maybe alter dependencies in-between training)

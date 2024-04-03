@@ -158,6 +158,72 @@ def positional_pattern_demo(v:Vector2d) -> None:
 keyword_pattern_demo(Vector2d(0,7))
 positional_pattern_demo(Vector2d(0,7))
 
+# look into "private" variables 
+v1 = Vector2d(3,4)
+v1.__dict__
+
+# SAVING MEMORY WITH __SLOTS__
+
+class Pixel:
+    __slots__ = ('x','y')
+
+p = Pixel()
+#p.__dict__ # AttributeError here because when slots are used, a dictionary is not
+p.x = 3
+p.y = 2
+#p.color = 'Brown' # slots will not allow variable setting for variables not defined in class
+#v1.color = 'Blue' # Wow you can just create a variable on a object without it defined in class
+
+
+class OpenPixel(Pixel):
+    pass 
+
+op = OpenPixel()
+op.__dict__
+op.x = 6 
+op.__dict__ # unexpected blank dict, though op.x would show
+op.x # the variable does exists
+
+
+op.color = "Brown"
+op.__dict__ # shows color because not in inherited class but x and y are in base class.... so
+
+
+# inheritance and add variable to slots sub-class
+
+class ColorPixel(Pixel):
+    __slots__ = ('color',)
+
+cp = ColorPixel()
+cp.x = 9
+cp.color = 'Blue'
+#cp.__dict__ # this fails, has no dict which is good and can not update a new var color.
+#cp.flavor # AttributeError
+
+# OVERRIDING CLASS ATTRIBUTES
+v1 = Vector2d(3.2,2.6)
+dumpd = bytes(v1)
+dumpd
+len(dumpd)
+
+v1.typecode = 'f' # overwrites the class attribute and now instance attribute will be used
+dumpfd = bytes(v1)
+dumpfd
+len(dumpfd)
+
+Vector2d.typecode # class attribute typecode will remain the same
+
+class ShortVector2d(Vector2d):
+    typecode = 'f'
+
+s1 = ShortVector2d(3.2,2.6)
+len(bytes(s1)) # same output as when changed the class attribute directly on the instance
+s1 # repr function implementing type(self).__class_name__ allows for the subclass to use the same repr with no overwrites
+
+
+
+
+
 
 
 # %%

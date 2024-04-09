@@ -4,9 +4,11 @@ from array import array
 import reprlib
 import math 
 import operator
+import functools
 
 class Vector:
     typecode = 'd'
+    __match_args__ = ('x','y','z','t')
 
     def __init__(self,components):
         self._components = array(self.typecode,components)
@@ -25,9 +27,6 @@ class Vector:
     def __bytes__(self):
         return (bytes([ord(self.typecode)]) + bytes(self._components))
     
-    def __eq__(self, other):
-        return tuple(self) == tuple(other)
-    
     def __abs__(self):
         return math.hypot(*self)
     
@@ -37,18 +36,64 @@ class Vector:
     def __len__(self):
         return len(self._components)
     
+    # def __eq__(self, other):
+    #    return tuple(self) == tuple(other) # inefficient, creates copies and can be bad for large mutlidim vectors
+
+    # def __eq__(self,other):
+    #     if len(self) != len(other)
+    #         return False 
+    #     for a,b in zip(self,other):
+    #         if a != b:
+    #             return False
+    #     return True # this implementation is effecient but can be done in one line
+
+    def __eq__(self,other):
+        return len(self) == len(other) and all(a==b for a,b in zip(self,other))
+
+    
+    def __hash__(self):
+        hashes = map(hash,self._components)
+        return functools.reduce(operator.xor, hashes)
+    
     def __getitem__(self,key):
         if isinstance(key,slice):
             cls = type(self)
             return cls(self._components[key])
         index = operator.index(key)
         return self._components[index]
+
+    def __setattr__(self,name,value):
+        cls = type(self)
+        if len(name) == 1:
+            if name in cls.__match_args__:
+                error = 'readonly attribute {attr_name!r}'
+            elif name.islower():
+                error = "can't set attributes 'a' to 'z' in {cls_name!r}"
+            else:
+                error = ''
+            if error:
+                msg = error.format(cls_name=cls.__name__, attr_name=name)
+                raise AttributeError(msg)
+        super().__setattr__(name,value) # if nothing else fails then set attr value
+    
+    def __getattr__(self,name):
+        cls = type(self)
+        try:
+            pos = cls.__match_args__.index(name)
+        except ValueError:
+            pos = -1
+        if 0 <= pos < len(self._components):
+            return self._components[pos]
+        msg = f'{cls.__name__!r} object has no attribute {name!r}'
+        raise AttributeError(msg)
     
     @classmethod
     def frombytes(cls, octets):
         typecode = chr(octets[0])
         memv = memoryview(octets[1:]).cast(typecode)
         return cls(memv)
+    
+
     
 # PROTOCOL AND DUCK TYPING
     
@@ -110,5 +155,23 @@ v7 = Vector(range(7))
 v7[-1]
 v7[1:4]
 v7[-1:] # all returns vector slice now
+
+
+# HASHING AND A FASTER == 
+
+# calculating accum xor of integers 0 to 5
+# method 1
+
+n = 0
+for i in range(1,6):
+    n ^= i 
+n 
+
+# method 2
+functools.reduce(lambda a,b: a^b,range(6))
+
+# method 3
+functools.reduce(operator.xor, range(6))
+
 
 # %%

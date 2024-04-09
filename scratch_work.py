@@ -204,11 +204,11 @@ myModel.get_env_dependencies()
 myModel.model_pkl
 
 driver_table.update(myModel.model_pkl,myModel.model_eval,myModel.get_env_dependencies(),datetime(2023,4,13))
-driver_table.table
 
 # Make a prediction using the DriverTable object
 prediction = driver_table.predict(np.array([44, 44, 44, 44]).reshape(1, -1))[0]
-prediction
+driver_table.table
+print(prediction)
 
 
 
@@ -216,13 +216,29 @@ prediction
 # Part 2 - Generate new rows
 # n_rows = 100
 # min_value = 20
-# max_value = 120
-# noise = 1.6
+# max_value = 1200
+# noise = 100.6
 # intercept = 12
 # slope = 5
 
 # data.add_rows(n_rows,min_value,max_value,noise,intercept,slope)
-#data.table[(data.table['Date'] >= datetime(2023,1,1)) & (data.table['Date'] < datetime(2023,4,11))].drop(['Date','Target'],axis=1)
+
+# X_train, X_test, y_train, y_test = data.get_train_test_data(datetime(2023,4,12),datetime(2023,7,22))
+
+# myModel = MyLinearModel()
+# myModel.train(X_train.values,y_train.values)
+# myModel.model_eval
+# myModel.evaluate(X_test.values,y_test.values)
+# print(myModel.model_eval)
+# myModel.get_env_dependencies()
+# myModel.model_pkl
+
+# driver_table.update(myModel.model_pkl,myModel.model_eval,myModel.get_env_dependencies(),datetime(2023,7,23))
+# driver_table.table
+
+# # Make a prediction using the DriverTable object
+# prediction = driver_table.predict(np.array([44, 44, 44, 44]).reshape(1, -1))[0]
+# print(prediction)
 
 
 

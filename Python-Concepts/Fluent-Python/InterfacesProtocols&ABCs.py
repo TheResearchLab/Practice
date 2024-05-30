@@ -134,4 +134,42 @@ class BingoCage(Tombola):
         self.pick()
 
 
+class LottoBlower(Tombola):
+    
+    def __init__(self,iterable):
+        self._balls = list(iterable)
+    
+    def load(self, iterable):
+        self._balls.extend(iterable)
+
+    def pick(self):
+        try:
+            position = random.randrange(len(self._balls))
+        except ValueError:
+            raise LookupError('pick from empty LottoBlower')
+        return self._balls.pop(position)
+    
+    def loaded(self):
+        return bool(self._balls)
+    
+    def inspect(self):
+        return tuple(self._balls)
+    
+
+@Tombola.register # register virtual subclass
+class TomboList(list):
+    def pick(self):
+        if self:
+            position = random.randrange(len(self))
+            return self.pop(position)
+        else:
+            raise LookupError('pop from empty TomboList')
+        
+    load = list.extend
+
+    def loaded(self):
+        return bool(self)
+    
+    def inspect(self):
+        return tuple(self)
 # %%

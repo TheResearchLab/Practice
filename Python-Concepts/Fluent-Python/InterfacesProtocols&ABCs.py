@@ -107,7 +107,7 @@ class Fake(Tombola):
         return 13 
     
 Fake
-f = Fake()
+#f = Fake() #type error because didn't add a load method
 
 # subclassing and ABC
 
@@ -172,4 +172,21 @@ class TomboList(list):
     
     def inspect(self):
         return tuple(self)
+    
+
+# Support for Structural Typing with ABCs
+
+class Struggle:
+    def __len__(self): return 23
+
+
+from collections import abc
+
+isinstance(Struggle(),abc.Sized) # True
+issubclass(Struggle,abc.Sized) # True
+
+isinstance(16,(str,dict)) # check if is instances of this or that
+isinstance(16,(str,dict,int)) # True
+
+
 # %%

@@ -188,5 +188,10 @@ issubclass(Struggle,abc.Sized) # True
 isinstance(16,(str,dict)) # check if is instances of this or that
 isinstance(16,(str,dict,int)) # True
 
+# The numbers ABCs and Numeric Protocols
 
+import numpy as np
+cd = np.cdouble(3+4j)
+cd
+float(cd)
 # %%

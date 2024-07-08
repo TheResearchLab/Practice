@@ -7,6 +7,8 @@ FastAPI/__pycache__
 FastAPI/venv
 Streamlit-Basketball-App/Airplane_Scheduler/airplane.dev.yaml
 venv/
+.venv
+.mypy_cache
 Financial-DB/api_key.txt
 Financial-DB/.env
 Financial-DB/__pycache__

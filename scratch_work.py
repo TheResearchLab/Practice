@@ -188,21 +188,21 @@ intercept = 5
 slope = 12
 start_dt = datetime(2023,1,1)
 
+# Instantiate Data Generator Object
 data = DataGenerator(start_dt,n_rows,n_cols,min_value,max_value,intercept,noise,slope)
 data.table # this returns the dataframe
 
+# Train
 X_train, X_test, y_train, y_test = data.get_train_test_data(datetime(2023,1,1),datetime(2023,4,11))
 
 
-
+# Instantiate Linear Model and supplemental information
 myModel = MyLinearModel()
 myModel.train(X_train.values,y_train.values)
-myModel.model_eval
 myModel.evaluate(X_test.values,y_test.values)
-myModel.model_eval
 myModel.get_env_dependencies()
-myModel.model_pkl
 
+# update driver table with new model
 driver_table.update(myModel.model_pkl,myModel.model_eval,myModel.get_env_dependencies(),datetime(2023,4,13))
 
 # Make a prediction using the DriverTable object

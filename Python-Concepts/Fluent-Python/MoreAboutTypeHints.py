@@ -76,10 +76,10 @@ def demo() -> None:
     not_book = from_json(NOT_BOOK_JSON)
     if TYPE_CHECKING:
         reveal_type(not_book)
-        reveal_type(not_book['authors'])
+        #reveal_type(not_book['authors'])
 
-    print(not_book)
-    print(not_book['flavor'])
+    #print(not_book)
+    #print(not_book['flavor'])
 
     xml = to_xml(not_book)
     print(xml)
@@ -148,7 +148,7 @@ class Tombola(abc.ABC):
             return tuple(items)
         
 
-T = TypeVar('T')
+#T = TypeVar('T')
 
 class LottoBlower(Tombola, Generic[T]):
 
@@ -171,4 +171,91 @@ class LottoBlower(Tombola, Generic[T]):
     def inspect(self) -> tuple[T,...]:
         return tuple(self._balls)
     
-        
+
+# Invariant Dispenser Example - Variance Explained
+
+from typing import TypeVar, Generic 
+
+class Beverage:
+    """Any beverage."""
+
+class Juice(Beverage):
+    """Any fruit juice"""
+
+class OrangeJuice(Juice):
+    """Delicious juice from Brazilian oranges"""
+
+T = TypeVar('T')
+
+# class BeverageDispenser(Generic[T]):
+#     """A dispenser parameterized on the beverage type."""
+#     def __init__(self, beverage:T):
+#         self.beverage = beverage 
+    
+#     def dispense(self) -> T:
+#         return self.beverage 
+    
+# def install(dispenser: BeverageDispenser[Juice]) -> None:
+#     """Install a fruit juice dispenser"""
+
+
+# # conforming implementation
+
+# juice_dispenser = BeverageDispenser(Juice())
+# install(juice_dispenser)
+
+# # non-conforming implementation - Can only handle juice
+# beverage_dispenser = BeverageDispenser(Beverage())
+# install(beverage_dispenser)
+
+# # suprisingly doesn't conform - Can only handle Juice (invariant) despite OrangeJuice being a sub-type
+# orange_juice_dispenser = BeverageDispenser(OrangeJuice())
+# install(orange_juice_dispenser)
+
+# Covariant Dispenser 
+
+T_co = TypeVar('T_co',covariant=True)
+
+class BeverageDispenser(Generic[T_co]):
+    def __init__(self, beverage: T_co) -> None:
+        self.beverage = beverage 
+
+    def dispense(self) -> T_co:
+        return self.beverage 
+    
+def install(dispenser: BeverageDispenser[Juice]):
+    """Install a fruit juice dispenser."""
+
+orange_juice_dispenser = BeverageDispenser(OrangeJuice()) # Now has no issues
+install(orange_juice_dispenser)
+
+# Contravariant Example
+
+class Refuse:
+    """Any type of trash"""
+
+class Biodegradable(Refuse):
+    """Biodegradable refuse"""
+
+class Compostable(Biodegradable):
+    """Compostable refuse""" 
+
+T_contra = TypeVar('T_contra',contravariant=True)
+
+class TrashCan(Generic[T_contra]):
+    def put(self,refuse:T_contra) -> None:
+        """Store trash until dumped"""
+
+def deploy(trash_can:TrashCan[Biodegradable]):
+    """Deploy a trash can for biodegradable refuse"""    
+
+# These work with MYPY
+refuse_can: TrashCan[Refuse] = TrashCan()
+deploy(refuse_can)
+
+bio_can: TrashCan[Biodegradable] = TrashCan()
+deploy(bio_can)
+
+# This does not work
+compost_can: TrashCan[Compostable] = TrashCan()
+deploy(compost_can)

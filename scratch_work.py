@@ -163,13 +163,15 @@ class MyLinearModel:
 
 
 
-# Driver Table Example User
-
+# Model Registry Table Example
 driver_table = DriverTable(datetime(2023,1,1),101,12)
-driver_table.next_beg_dt
-driver_table.next_end_dt
-driver_table.insert()
-driver_table.table
+driver_table.table 
+
+
+# driver_table.next_beg_dt
+# driver_table.next_end_dt
+# driver_table.insert()
+# driver_table.table
 
 
 
@@ -178,7 +180,7 @@ driver_table.table
 
 # Main Function
 
-# Part 1 - Initial data generation
+# Generate Sample Data 
 n_rows = 100
 n_cols = 4
 min_value = 1
@@ -190,7 +192,7 @@ start_dt = datetime(2023,1,1)
 
 # Instantiate Data Generator Object
 data = DataGenerator(start_dt,n_rows,n_cols,min_value,max_value,intercept,noise,slope)
-data.table # this returns the dataframe
+# data.table.head(10) 
 
 # Train
 X_train, X_test, y_train, y_test = data.get_train_test_data(datetime(2023,1,1),datetime(2023,4,11))
@@ -204,10 +206,10 @@ myModel.get_env_dependencies()
 
 # update driver table with new model
 driver_table.update(myModel.model_pkl,myModel.model_eval,myModel.get_env_dependencies(),datetime(2023,4,13))
+driver_table.table
 
 # Make a prediction using the DriverTable object
 prediction = driver_table.predict(np.array([44, 44, 44, 44]).reshape(1, -1))[0]
-driver_table.table
 print(prediction)
 
 

@@ -1,5 +1,5 @@
 #%% 
-
+import collections.abc as abc 
 
 principal = 4000 
 rate = .08 
@@ -160,6 +160,19 @@ class Vector:
     
     def __rmul__(self,scalar):
         return self * scalar
+    
+    def  __matmul__(self,other):
+        if (isinstance(other, abc.Sized) and 
+            isinstance(other, abc.Iterable)):
+            if len(self) == len(other):
+                return sum(a*b for a,b in zip(self,other))
+            else:
+                raise ValueError('@ requires vectors of equal length.')
+        else:
+            return NotImplemented  
+    
+    def __rmatmul__(self,other):
+        return self @ other 
 
     @classmethod
     def frombytes(cls, octets):
@@ -171,9 +184,12 @@ class Vector:
 
 v1 = Vector([3,4,5])
 
-v1 + 1 # doesn't work with non-iterable 
-v1 + 'ABC' # doesn't work with non-float
+#v1 + 1 # doesn't work with non-iterable 
+#v1 + 'ABC' # doesn't work with non-float
 
+va = Vector([1,2,3])
+vz = Vector([5,6,7])
+print(va @ vz == 38.0) 
 
 
 

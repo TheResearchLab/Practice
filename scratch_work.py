@@ -130,8 +130,8 @@ class DriverTable:
 
     def predict(self,args):
         target_row = self.table[self.table['Run_Flag'] == True]['Beg_Date'].idxmax() 
-        model_hex = self.table.loc[target_row,'Model_Obj']
-        model = pickle.loads(bytes.fromhex(model_hex))
+        model = self.table.loc[target_row,'Model_Obj']
+        model = pickle.loads(model)
         return model.predict(args)
 
 
@@ -140,13 +140,13 @@ class MyLinearModel:
     def __init__(self):
         """ Creates Simple Linear Regression Model For Example"""
         self.model = LinearRegression()
-        self.model_pkl = pickle.dumps(self.model).hex()
+        self.model_pkl = pickle.dumps(self.model)
         self.model_eval = {}
         
 
     def train(self,X_train,y_train): #Update model pkl object attribute
         self.model = self.model.fit(X_train,y_train)
-        self.model_pkl = pickle.dumps(self.model).hex()
+        self.model_pkl = pickle.dumps(self.model)
 
     def evaluate(self,X_test,y_test): #Update evaluation dict object attribute
         self.model_eval = {'test_score':self.model.score(X_test,y_test)}
@@ -159,6 +159,14 @@ class MyLinearModel:
         return json.dumps(installed_packages_dict, indent=None)
         
 
+def generate_requirements_file(requirement_json):
+    packages = json.loads(requirement_json)
+    
+    with open('requirements.txt','w') as f:
+        for package,version in packages.items():
+            f.write(f"{package}=={version}\n")
+
+    
 
 
 
@@ -211,6 +219,7 @@ driver_table.table
 # Make a prediction using the DriverTable object
 prediction = driver_table.predict(np.array([44, 44, 44, 44]).reshape(1, -1))[0]
 print(prediction)
+print(myModel.get_env_dependencies())
 
 
 

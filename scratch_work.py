@@ -3,12 +3,12 @@
 
 # PART 1 - create model and predict using driver table
 # create driver table & create synthetic data objects
-# get train data from DataGenerator based on DriverTable beg and end_dts
-# train MyLinearModel and input those object outputs into the DriverTable update method
-# predict with the model from the DriverTable update
+# get train data from DataGenerator based on ModelRegistry beg and end_dts
+# train MyLinearModel and input those object outputs into the ModelRegistry update method
+# predict with the model from the ModelRegistry update
 
 # PART 2 - create another model and compare models against each other
-# insert 2 new rows into the DriverTable object and generate more rows for DataGenerator
+# insert 2 new rows into the ModelRegistry object and generate more rows for DataGenerator
 # repeat steps from PART 1 to generate another model
 # compare model evaluations and dependencies (maybe alter dependencies in-between training)
 
@@ -84,7 +84,7 @@ class DataGenerator:
 
     
 
-class DriverTable:
+class ModelRegistry:
     
     def __init__(self,start_dt,increment,n_rows):
         self.start_dt = start_dt
@@ -139,15 +139,19 @@ class DriverTable:
     def predict(self,args):
         target_row = self.table[self.table['Run_Flag'] == True]['Beg_Date'].idxmax() 
         model_bytes = self.table.loc[target_row,'Model_Obj']
-        env_deps = json.loads(self.table.loc[target_row,'Env_Deps'])
-        #if #sckit-learn == sckit-learn
+        model_scikit_version = json.loads(self.table.loc[target_row,'Env_Deps'])['scikit-learn']
+        
         # check if model environment is the same the env 
-        model = pickle.loads(model_bytes)
-        return model.predict(args)
-    
-    def _validate_env_req(self,env_deps):
-        current_version = json.loads(get_env_dependencies())['scikit-learn']
-        return env_deps['scikit-learn'] >= current_version
+        if self._validate_env_req(model_scikit_version): # if False:
+            model = pickle.loads(model_bytes)
+            return model.predict(args)
+
+        raise ValueError(f"Incompatible versions for model... update environment to scikit-learn version: {model_scikit_version}") 
+            
+        
+    def _validate_env_req(self,model_scikit_version):
+        env_scikit_version = json.loads(get_env_dependencies())['scikit-learn']
+        return env_scikit_version == model_scikit_version
 
 
 
@@ -183,7 +187,7 @@ def generate_requirements_file(requirement_json):
 
 
 # Model Registry Table Example
-driver_table = DriverTable(datetime(2023,1,1),101,12)
+driver_table = ModelRegistry(datetime(2023,1,1),101,12)
 driver_table.table 
 
 
@@ -209,7 +213,7 @@ intercept = 5
 slope = 12
 start_dt = datetime(2023,1,1)
 
-# Instantiate Data Generator Object
+# Instantiate Data Generator Object      
 data = DataGenerator(start_dt,n_rows,n_cols,min_value,max_value,intercept,noise,slope)
 # data.table.head(10) 
 
@@ -226,7 +230,7 @@ myModel.evaluate(X_test.values,y_test.values)
 driver_table.update(myModel.model_pkl,myModel.model_eval,get_env_dependencies(),datetime(2023,4,13))
 driver_table.table
 
-# Make a prediction using the DriverTable object
+# Make a prediction using the ModelRegistry object
 prediction = driver_table.predict(np.array([44, 44, 44, 44]).reshape(1, -1))[0]
 print(prediction)
 #print(driver_table._validate_env_req())
@@ -235,31 +239,30 @@ print(prediction)
 
 
 # Part 2 - Generate new rows
-# n_rows = 100
-# min_value = 20
-# max_value = 1200
-# noise = 100.6
-# intercept = 12
-# slope = 5
+n_rows = 100
+min_value = 20
+max_value = 1200
+noise = 100.6
+intercept = 12
+slope = 5
 
-# data.add_rows(n_rows,min_value,max_value,noise,intercept,slope)
+# Generate more synthetic data
+data.add_rows(n_rows,min_value,max_value,noise,intercept,slope)
 
-# X_train, X_test, y_train, y_test = data.get_train_test_data(datetime(2023,4,12),datetime(2023,7,22))
+# Train model based on new synthetic data
+X_train, X_test, y_train, y_test = data.get_train_test_data(datetime(2023,4,12),datetime(2023,7,22))
 
-# myModel = MyLinearModel()
-# myModel.train(X_train.values,y_train.values)
-# myModel.model_eval
-# myModel.evaluate(X_test.values,y_test.values)
-# print(myModel.model_eval)
-# myModel.get_env_dependencies()
-# myModel.model_pkl
+myModel = MyLinearModel()
+myModel.train(X_train.values,y_train.values)
+myModel.evaluate(X_test.values,y_test.values)
 
-# driver_table.update(myModel.model_pkl,myModel.model_eval,myModel.get_env_dependencies(),datetime(2023,7,23))
-# driver_table.table
+#update registry
+driver_table.update(myModel.model_pkl,myModel.model_eval,get_env_dependencies(),datetime(2023,7,23))
+driver_table.table
 
-# # Make a prediction using the DriverTable object
-# prediction = driver_table.predict(np.array([44, 44, 44, 44]).reshape(1, -1))[0]
-# print(prediction)
+# Make a prediction using the ModelRegistry object
+prediction = driver_table.predict(np.array([44, 44, 44, 44]).reshape(1, -1))[0]
+print(prediction)
 
 
 

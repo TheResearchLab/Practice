@@ -22,7 +22,15 @@ from sklearn.linear_model import LinearRegression
 import pickle
 import json
 import pkg_resources
+from packaging.version import Version
 
+
+
+def get_env_dependencies() -> str: 
+    """ Outputs Pip Freeze Results As Dict or String """
+    installed_packages = [dist.project_name for dist in pkg_resources.working_set]
+    installed_packages_dict = {pkg: pkg_resources.get_distribution(pkg).version for pkg in installed_packages}
+    return json.dumps(installed_packages_dict, indent=None)
 
 
 class DataGenerator:
@@ -130,9 +138,18 @@ class DriverTable:
 
     def predict(self,args):
         target_row = self.table[self.table['Run_Flag'] == True]['Beg_Date'].idxmax() 
-        model = self.table.loc[target_row,'Model_Obj']
-        model = pickle.loads(model)
+        model_bytes = self.table.loc[target_row,'Model_Obj']
+        env_deps = json.loads(self.table.loc[target_row,'Env_Deps'])
+        #if #sckit-learn == sckit-learn
+        # check if model environment is the same the env 
+        model = pickle.loads(model_bytes)
         return model.predict(args)
+    
+    def _validate_env_req(self,env_deps):
+        current_version = json.loads(get_env_dependencies())['scikit-learn']
+        return env_deps['scikit-learn'] >= current_version
+
+
 
 
 class MyLinearModel:
@@ -151,12 +168,6 @@ class MyLinearModel:
     def evaluate(self,X_test,y_test): #Update evaluation dict object attribute
         self.model_eval = {'test_score':self.model.score(X_test,y_test)}
     
-    @staticmethod
-    def get_env_dependencies() -> str: 
-        """ Outputs Pip Freeze Results As Dict or String """
-        installed_packages = [dist.project_name for dist in pkg_resources.working_set]
-        installed_packages_dict = {pkg: pkg_resources.get_distribution(pkg).version for pkg in installed_packages}
-        return json.dumps(installed_packages_dict, indent=None)
         
 
 def generate_requirements_file(requirement_json):
@@ -210,16 +221,15 @@ X_train, X_test, y_train, y_test = data.get_train_test_data(datetime(2023,1,1),d
 myModel = MyLinearModel()
 myModel.train(X_train.values,y_train.values)
 myModel.evaluate(X_test.values,y_test.values)
-myModel.get_env_dependencies()
 
 # update driver table with new model
-driver_table.update(myModel.model_pkl,myModel.model_eval,myModel.get_env_dependencies(),datetime(2023,4,13))
+driver_table.update(myModel.model_pkl,myModel.model_eval,get_env_dependencies(),datetime(2023,4,13))
 driver_table.table
 
 # Make a prediction using the DriverTable object
 prediction = driver_table.predict(np.array([44, 44, 44, 44]).reshape(1, -1))[0]
 print(prediction)
-print(myModel.get_env_dependencies())
+#print(driver_table._validate_env_req())
 
 
 

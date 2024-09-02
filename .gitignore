@@ -12,3 +12,4 @@ venv/
 Financial-DB/api_key.txt
 Financial-DB/.env
 Financial-DB/__pycache__
+practice_env/

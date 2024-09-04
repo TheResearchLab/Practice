@@ -265,5 +265,24 @@ vc == v2d
 t3 = (1,2,3)
 va == t3
 
+# Augmented Assignment Operators 
+v1 = Vector([1,2,3])
+v1_alias = v1 
+print(id(v1))
+v1 += Vector([4,5,6])
+print(v1_alias)
+print(id(v1))
+v1 *= 11 
+print(v1)
+print(id(v1))
 
+
+my_list = [1,2,3]
+x = [4,5,6]
+my_list + x 
+print(my_list)
+print(x)
+my_list += x # my list gets extended here
+print(my_list)
+print(x)
 # %%

@@ -260,7 +260,7 @@ myModel.evaluate(X_test.values,y_test.values)
 driver_table.update(myModel.model_pkl,myModel.model_eval,get_env_dependencies(),datetime(2023,7,23))
 driver_table.table
 
-# Make a prediction using the ModelRegistry object
+# Make a prediction using the newest ModelRegistry object
 prediction = driver_table.predict(np.array([44, 44, 44, 44]).reshape(1, -1))[0]
 print(prediction)
 

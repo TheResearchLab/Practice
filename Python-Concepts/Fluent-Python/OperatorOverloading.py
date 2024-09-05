@@ -1,4 +1,5 @@
 #%% 
+# Chapter 16
 import collections.abc as abc 
 
 principal = 4000 
@@ -285,4 +286,82 @@ print(x)
 my_list += x # my list gets extended here
 print(my_list)
 print(x)
+
+
+
+import abc
+import random
+
+
+
+class Tombola(abc.ABC):
+    
+    @abc.abstractmethod
+    def load(self,iterable):
+        """ Add items from an iterable"""
+
+    @abc.abstractmethod
+    def pick(self):
+        """Remove item at random, return it.
+        
+        This method should raise 'LookupError' when the instance is empty
+        """
+    
+    def loaded(self):
+        """Return 'True' if there's at leadt 1 item, 'False' otherwise. """
+        return bool(self.inspect())
+    
+    def inspect(self):
+        """Return a sorted tuple with the items currently inside."""
+        items = []
+        while True:
+            try:
+                items.append(self.pick())
+            except LookupError:
+                break
+            self.load(items)
+            return tuple(items)
+
+class BingoCage(Tombola):
+
+    def __init__(self, items):
+        self._randomizer = random.SystemRandom()
+        self._items = []
+        self.load(items)
+
+    def load(self,items):
+        self._items.extend(items)
+        self._randomizer.shuffle(self._items)
+
+    def pick(self):
+        try:
+            return self._items.pop()
+        except IndexError:
+            raise LookupError('pick from empty BingoCage')
+        
+    def __call__(self):
+        self.pick()
+
+
+class AddableBingoCage(BingoCage):
+    def __add__(self, other):
+        if isinstance(other,Tombola):
+            return AddableBingoCage(self.inspect() + other.inspect()) # Creates new instance
+        else:
+            return NotImplemented
+        
+    def __iadd__(self, other): #in place adding
+        if isinstance(other,Tombola):
+            other_iterable = other.inspect()
+        else:
+            try:
+                other_iterable = iter(other)
+            except TypeError:
+                msg = ('right opernd in += must be'
+                       "'Tombola' or an iterable") # python auto concat
+                raise TypeError(msg)
+            self.load(other_iterable)
+            return self # must return self. Because in-place operator
+
+
 # %%

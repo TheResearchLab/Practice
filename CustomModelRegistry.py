@@ -1,6 +1,4 @@
 
-#%%
-
 # PART 1 - create model and predict using driver table
 # create driver table & create synthetic data objects
 # get train data from DataGenerator based on ModelRegistry beg and end_dts
@@ -181,91 +179,80 @@ def generate_requirements_file(requirement_json):
         for package,version in packages.items():
             f.write(f"{package}=={version}\n")
 
+# generate requirements.txt based on model env dependencies
+# generate_requirements_file(get_env_dependencies())
+
     
 
 
-
-
-# Model Registry Table Example
-driver_table = ModelRegistry(datetime(2023,1,1),101,12)
-driver_table.table 
-
-
-# driver_table.next_beg_dt
-# driver_table.next_end_dt
-# driver_table.insert()
-# driver_table.table
-
-
-
-
-
-
 # Main Function
+def main():
 
-# Generate Sample Data 
-n_rows = 100
-n_cols = 4
-min_value = 1
-max_value = 100
-noise = 0.5
-intercept = 5
-slope = 12
-start_dt = datetime(2023,1,1)
+    # Model Registry Table Example
+    driver_table = ModelRegistry(datetime(2023,1,1),101,12)
+    driver_table.table 
 
-# Instantiate Data Generator Object      
-data = DataGenerator(start_dt,n_rows,n_cols,min_value,max_value,intercept,noise,slope)
-# data.table.head(10) 
+    # Generate Sample Data 
+    n_rows = 100
+    n_cols = 4
+    min_value = 1
+    max_value = 100
+    noise = 0.5
+    intercept = 5
+    slope = 12
+    start_dt = datetime(2023,1,1)
 
-# Train
-X_train, X_test, y_train, y_test = data.get_train_test_data(datetime(2023,1,1),datetime(2023,4,11))
+    # Instantiate Data Generator Object      
+    data = DataGenerator(start_dt,n_rows,n_cols,min_value,max_value,intercept,noise,slope)
+    # data.table.head(10) 
 
-
-# Instantiate Linear Model and supplemental information
-myModel = MyLinearModel()
-myModel.train(X_train.values,y_train.values)
-myModel.evaluate(X_test.values,y_test.values)
-
-# update driver table with new model
-driver_table.update(myModel.model_pkl,myModel.model_eval,get_env_dependencies(),datetime(2023,4,13))
-driver_table.table
-
-# Make a prediction using the ModelRegistry object
-prediction = driver_table.predict(np.array([44, 44, 44, 44]).reshape(1, -1))[0]
-print(prediction)
-#print(driver_table._validate_env_req())
+    # Model #1 Trainset
+    X_train, X_test, y_train, y_test = data.get_train_test_data(datetime(2023,1,1),datetime(2023,4,11))
 
 
+    # Instantiate Linear Model/supplemental information & Train
+    myModel = MyLinearModel()
+    myModel.train(X_train.values,y_train.values)
+    myModel.evaluate(X_test.values,y_test.values)
+
+    # update driver table with new model
+    driver_table.update(myModel.model_pkl,myModel.model_eval,get_env_dependencies(),datetime(2023,4,13))
+    driver_table.table
+
+    # Make a prediction using the ModelRegistry object
+    prediction = driver_table.predict(np.array([44, 44, 44, 44]).reshape(1, -1))[0]
+    print(prediction)
 
 
-# Part 2 - Generate new rows
-n_rows = 100
-min_value = 20
-max_value = 1200
-noise = 100.6
-intercept = 12
-slope = 5
+    # Part 2 - Generate new rows
+    n_rows = 100
+    min_value = 20
+    max_value = 1200
+    noise = 100.6
+    intercept = 12
+    slope = 5
 
-# Generate more synthetic data
-data.add_rows(n_rows,min_value,max_value,noise,intercept,slope)
+    # Generate more synthetic data
+    data.add_rows(n_rows,min_value,max_value,noise,intercept,slope)
 
-# Train model based on new synthetic data
-X_train, X_test, y_train, y_test = data.get_train_test_data(datetime(2023,4,12),datetime(2023,7,22))
+    # Train model based on new synthetic data
+    X_train, X_test, y_train, y_test = data.get_train_test_data(datetime(2023,4,12),datetime(2023,7,22))
 
-myModel = MyLinearModel()
-myModel.train(X_train.values,y_train.values)
-myModel.evaluate(X_test.values,y_test.values)
+    myModel = MyLinearModel()
+    myModel.train(X_train.values,y_train.values)
+    myModel.evaluate(X_test.values,y_test.values)
 
-#update registry
-driver_table.update(myModel.model_pkl,myModel.model_eval,get_env_dependencies(),datetime(2023,7,23))
-driver_table.table
+    #update registry
+    driver_table.update(myModel.model_pkl,myModel.model_eval,get_env_dependencies(),datetime(2023,7,23))
+    driver_table.table
 
-# Make a prediction using the newest ModelRegistry object
-prediction = driver_table.predict(np.array([44, 44, 44, 44]).reshape(1, -1))[0]
-print(prediction)
-
-
+    # Make a prediction using the newest ModelRegistry object
+    prediction = driver_table.predict(np.array([44, 44, 44, 44]).reshape(1, -1))[0]
+    print(prediction)
 
 
 
-# %%
+if __name__ == "__main__":
+    main()
+
+

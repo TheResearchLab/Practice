@@ -1,5 +1,7 @@
 #%% 
 
+# Chapter 17
+
 import re
 import reprlib
 
@@ -25,3 +27,40 @@ s
 for word in s:
     print(word)
 list(s)
+
+from random import randint
+
+def d6():
+    return randint(1,6)
+
+d6_iter = iter(d6,1)
+d6_iter 
+
+for roll in d6_iter:
+    print(roll)
+
+s = 'ABC' # iterable 
+
+for letter in s: # hidden iterator
+    print(letter)
+
+# implementing the above with for loop
+
+
+it = iter(s)
+while True:
+    try:
+        print(next(it))
+    except StopIteration:
+        del it # garbage collection
+        break
+
+
+s3 = Sentence('Life of Aaron')
+it = iter(s3)
+it
+next(it)
+next(it)
+next(it)
+#next(it) # stop iteration
+list(iter(s3))

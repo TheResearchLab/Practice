@@ -1,4 +1,4 @@
-
+#%%
 # PART 1 - create model and predict using driver table
 # create driver table & create synthetic data objects
 # get train data from DataGenerator based on ModelRegistry beg and end_dts
@@ -109,7 +109,7 @@ class ModelRegistry:
     def next_end_dt(self):
         return self.table[self.table['Run_Flag'] == False]['End_Date'].min()
 
-    def insert(self):
+    def _insert(self):
         """ Adds A New Row To Table For Future Run."""
         new_row = {
             'Beg_Date':self.table['Beg_Date'].max() + timedelta(days=self.increment),
@@ -132,6 +132,7 @@ class ModelRegistry:
         self.table.loc[target_row,'Env_Deps'] = str(env_deps)
         self.table.loc[target_row,'Run_Flag'] = True
         self.table.loc[target_row,'Run_Date'] = run_date
+
         
 
     def predict(self,args):

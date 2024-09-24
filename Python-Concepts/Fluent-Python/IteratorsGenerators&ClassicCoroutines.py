@@ -145,7 +145,7 @@ class Sentence:
 
     def __iter__(self):
         for match in RE_WORD.finditer(self.text):
-            yield match.group()
+            yield match.group() # generator function
 
 
 def gen_AB():
@@ -165,3 +165,48 @@ print(type(res2))
 
 for i in res2:
     print('-->', i)
+
+
+class Sentence:
+
+    def __init__(self,text):
+        self.text = text 
+
+    def __repr__(self):
+        return f"Sentence({reprlib.repr(self.text)})"
+    
+    def __iter__(self):
+        return (match.group() for match in RE_WORD.finditer(self.text)) # generator expression
+    
+
+new_sentence = Sentence('This is the new sentence')
+
+for word in new_sentence:
+    print(word)
+
+list(new_sentence)
+
+
+class ArithmeticProgression:
+
+    def __init__(self, begin, step, end=None):
+        self.begin = begin 
+        self.step = step 
+        self.end = end # None -> infinite series
+
+    def __iter__(self):
+        result_type = type(self.begin + self.step)
+        result = result_type(self.begin)
+        forever = self.end is None 
+        index = 0 
+        while forever or result < self.end:
+            yield result 
+            index+=1 
+            result = self.begin + self.step * index # avoid cumulative floating point problem 
+
+
+100 * 1.1 # 110.0000000001
+sum(1.1 for _ in range(100)) # 109.99999999999982
+
+
+

@@ -208,5 +208,70 @@ class ArithmeticProgression:
 100 * 1.1 # 110.0000000001
 sum(1.1 for _ in range(100)) # 109.99999999999982
 
+# Arithmetic Progression
+import itertools 
+gen = itertools.count(1,.5) # count will run forever. list(count()) would cause stackoverflow
+
+
+for i in range(4):
+    print(next(gen))
+
+gen = itertools.takewhile(lambda n: n<3, itertools.count(1,.5))
+
+list(gen) # this works because "takewhile" has a predicate that will fail before the call stack is full
+
+def aritprog_gen(begin, step, end=None):
+    first = type(begin + step)(begin)
+    ap_gen = itertools.count(first,step)
+
+    if end is None:
+        return ap_gen 
+    return itertools.takewhile(lambda n: n<end, ap_gen)
+
+# filtering generator functions
+
+def is_even(num):
+    return num % 2 == 0
+
+list(filter(is_even,[1,2,3,4,5])) # filter objects where predicate is false
+next(filter(is_even,[1,2,3,4,5])) 
+
+list(itertools.filterfalse(is_even,[1,2,3,4,5])) # filter objects when predicate is truthy
+next(itertools.filterfalse(is_even,[1,2,3,4,5])) # still a generator
+
+# mapping generators
+sample =  [2,3,5,45,6,7,3,8,56,7,445,2,8,222]
+list(itertools.accumulate(sample))
+list(itertools.accumulate(sample,min)) # running minimum
+list(itertools.accumulate(sample,max)) # running maximum
+
+import operator 
+
+list(itertools.accumulate(sample, operator.mul))
+list(itertools.accumulate(range(1,11), operator.mul))
+
+list(enumerate('HiMyNameIs',1)) # pair string with number index
+list(map(operator.mul,range(11),range(11)))
+
+
+sample = [5,4,2,8,7,6,3,0,9,1]
+list(itertools.starmap(operator.mul,enumerate('albatroz',1)))
+list(itertools.starmap(lambda a, b: b/a,
+                       enumerate(itertools.accumulate(sample),1))) # running average
+
+# Merging Generators
+
+list(itertools.chain('ABC', range(2)))
+list(itertools.chain(enumerate('ABC'))) # merge enumerate's index with ABC outputs a tuple
+list(itertools.chain.from_iterable(enumerate('ABC'))) # same as above but outputs a list
+list(zip('ABC',range(5),[10,20,30,40])) # tuples of 3 items that only go up to max length of the shortest input
+list(itertools.zip_longest('ABC',range(5), fillvalue='?')) # add fillvalue to go the full range 5
+
+
+
+
+
+
+
 
 

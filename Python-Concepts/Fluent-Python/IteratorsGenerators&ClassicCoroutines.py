@@ -268,6 +268,75 @@ list(zip('ABC',range(5),[10,20,30,40])) # tuples of 3 items that only go up to m
 list(itertools.zip_longest('ABC',range(5), fillvalue='?')) # add fillvalue to go the full range 5
 
 
+# Cartesian products using itertools product generator
+list(itertools.product('ABC',range(2)))
+suits = 'spades hearts diamonds clubs'.split()
+list(itertools.product('AKQ',suits)) 
+list(itertools.product('ABC')) # doesn't add anything in the second position of the tuples within the list
+list(itertools.product('ABC',repeat=3)) # this is crazy 
+list(itertools.product('01',repeat=2)) # how is a variable passed into the method?
+
+rows = itertools.product('AB',range(2),repeat=2)
+for row in rows: print(row) # did not know this works either
+
+# itertools count, cycle, pairwise, and repeat
+ct = itertools.count()
+next(ct) # can just use instead of creating your own counter
+next(ct), next(ct), next(ct) # (1,2,3)
+
+list(itertools.islice(itertools.count(1,.5),4)) # islice?
+
+cy = itertools.cycle('ABC')
+list(itertools.islice(cy,5)) # cycle around, wonder how it remembers which index it's on?
+
+list(itertools.pairwise(range(7))) # creates an array sequence of tuples that pairs
+
+rp = itertools.repeat(7)
+next(rp), next(rp) 
+
+list(itertools.repeat(8,4))
+
+
+list(map(operator.mul, range(11),itertools.repeat(5))) # interesting example of mapping to a constant for multiplication. Each number in range is paired to a 5
+
+# Combinatorics Generators
+
+list(itertools.combinations('ABC',2)) # 3 options choose 2 unique chars
+list(itertools.combinations_with_replacement('ABC',2)) # 3 option choose 2 can pick same twice
+list(itertools.permutations('ABC',2)) # find all the unique pair combinations where AB != BA
+list(itertools.product('ABC',repeat=2)) # matches the permutation, the product of 'ABC' 'ABC'
+
+# group by generator and reversed
+list(itertools.groupby('LLLLAAGGG')) # returns a list of grouped objects 
+
+for char, group in itertools.groupby('LLLLAAGGG'):
+    print(char, '->', list(group))
+
+# key 
+animals = ['duck','goose','cat','python','mongoose','dog', 'frog','toad','snake','kangaroo','aligator','robin']
+
+animals.sort(key=len)
+animals 
+for length, group in itertools.groupby(animals,len):
+    print(length,'->',list(group))
+
+for length, group in itertools.groupby(reversed(animals),len): # built-in reversed function
+    print(length,'->',list(group))
+
+# tee generator, generates multiple generators as output
+
+list(itertools.tee('ABC'))
+
+g1, g2 = itertools.tee('ABC')
+# next(g1)
+# next(g2)
+# print(next(g1))
+# print(next(g2)) 
+
+list(zip(*itertools.tee('ABC')))
+#itertools.tee creates 2 instances of generator by default 
+#list(itertools.pairwise(next(g1) next(g2)))
+
 
 
 

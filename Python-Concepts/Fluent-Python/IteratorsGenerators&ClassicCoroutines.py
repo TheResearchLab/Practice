@@ -338,6 +338,18 @@ list(zip(*itertools.tee('ABC')))
 #list(itertools.pairwise(next(g1) next(g2)))
 
 
+# All and Any Generator Functions 
+all([1,2,3]) # returns true if all values are truthy 
+all([1,0,3])
+all([]) # hate that this returns true 
+any([]) # hate this equally as much
+
+g = (n for n in [0,0.0,7,8]) # returns a generator obj
+any(g) # can eval the generator object 
+print(next(g)) # any iterated over g until a truthy was found then 8 was left 
+
+
+
 
 
 

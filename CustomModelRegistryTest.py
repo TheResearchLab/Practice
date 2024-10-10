@@ -18,6 +18,8 @@ import time as t
 from CustomModelRegistry import DataGenerator, ModelRegistry, MyLinearModel, get_env_dependencies 
 from datetime import datetime, timedelta
 import numpy as np 
+import random 
+import matplotlib.pyplot as plt
 
 
 
@@ -57,14 +59,19 @@ driver_table.table
 
 
 
-num_iterations = 30000
-run_date = datetime(1,1,1)
+num_iterations = 50000
+
 prediction_times = []
 
 for i in range(1,num_iterations):
     try:
+        year = random.randint(2000,2025)
+        month = random.randint(1,12)
+        day = random.randint(1,28)
+
+        run_date = datetime(year,month,day)
         # add record
-        driver_table.update(myModel.model_pkl,myModel.model_eval,get_env_dependencies(),run_date + timedelta(days=1))
+        driver_table.update(myModel.model_pkl,myModel.model_eval,get_env_dependencies(),run_date)
         driver_table._insert()
 
         start_time = t.perf_counter()
@@ -79,6 +86,39 @@ for i in range(1,num_iterations):
 
 
 
+x = list(range(len(prediction_times)))
+plt.plot(x,prediction_times,marker='o',linestyle='-')
 print(prediction_times[0],prediction_times[-1])
-driver_table.table
+#driver_table.table
 
+#%%
+
+import joblib
+import pickle
+import zlib
+from sklearn.linear_model import LinearRegression
+from io import BytesIO
+
+# Create a sample model
+model = LinearRegression()
+
+
+joblib_buffer = BytesIO()
+pickle_buffer = BytesIO()
+
+# Joblib serialization (in-memory)
+with joblib_buffer:
+    joblib.dump(model, joblib_buffer,compress=3)
+    joblib_data = joblib_buffer.getvalue()
+
+# Pickle serialization (in-memory)
+with pickle_buffer:
+    pickle_byte = pickle.dumps(model)
+    compressed_pickle_bytes = zlib.compress(pickle_byte)
+
+# Size comparison
+joblib_size = len(joblib_data)
+pickle_size = len(compressed_pickle_bytes)
+
+print(f"Joblib Size: {joblib_size} bytes")
+print(f"Pickle Bytes Size: {pickle_size} bytes")

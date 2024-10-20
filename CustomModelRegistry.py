@@ -21,6 +21,8 @@ import pickle
 import json
 import pkg_resources
 from packaging.version import Version
+import zlib
+import polars as pl
 
 
 
@@ -83,75 +85,156 @@ class DataGenerator:
     
 
 class ModelRegistry:
-    
-    def __init__(self,start_dt,increment,n_rows):
+
+    def __init__(self, start_dt, increment, n_rows, library='pandas'):
         self.start_dt = start_dt
         self.increment = increment
         self.n_rows = n_rows
+        self.library = library
 
-        data = {
-            'Beg_Date': [start_dt + timedelta(days=increment*i) for i in range(n_rows)],
-            'End_Date': [start_dt + timedelta(days=(increment*(i+1))) for i in range(n_rows)],
-            'Model_Obj': [None for i in range(n_rows)],
-            'Model_Eval': [None for i in range(n_rows)],
-            'Env_Deps': [None for i in range(n_rows)],
-            'Run_Flag': [False for i in range(n_rows)],
-            'Run_Date': [None for i in range(n_rows)]
-        }
-        
-        self.table = pd.DataFrame.from_dict(data)
+        if self.library == 'pandas':
+            data = {
+                'Beg_Date': [start_dt + timedelta(days=increment * i) for i in range(n_rows)],
+                'End_Date': [start_dt + timedelta(days=(increment * (i + 1))) for i in range(n_rows)],
+                'Model_Obj': [None for _ in range(n_rows)],
+                'Model_Eval': [None for _ in range(n_rows)],
+                'Env_Deps': [None for _ in range(n_rows)],
+                'Run_Flag': [False for _ in range(n_rows)],
+                'Run_Date': [None for _ in range(n_rows)]
+            }
+            self.table = pd.DataFrame.from_dict(data)
+        elif self.library == 'polars':
+            data = {
+                'Beg_Date': [start_dt + timedelta(days=increment * i) for i in range(n_rows)],
+                'End_Date': [start_dt + timedelta(days=(increment * (i + 1))) for i in range(n_rows)],
+                'Model_Obj': [None for _ in range(n_rows)],
+                'Model_Eval': [None for _ in range(n_rows)],
+                'Env_Deps': [None for _ in range(n_rows)],
+                'Run_Flag': [False for _ in range(n_rows)],
+                'Run_Date': [None for _ in range(n_rows)]
+            }
+            self.table = pl.DataFrame(data)
 
     @property
     def next_beg_dt(self):
-        return self.table[self.table['Run_Flag'] == False]['Beg_Date'].min() 
+        return self.table.filter(pl.col('Run_Flag') == False)['Beg_Date'].min() 
 
     @property
     def next_end_dt(self):
-        return self.table[self.table['Run_Flag'] == False]['End_Date'].min()
+        return self.table.filter(pl.col('Run_Flag') == False)['End_Date'].min()
 
     def _insert(self):
         """ Adds A New Row To Table For Future Run."""
         new_row = {
-            'Beg_Date':self.table['Beg_Date'].max() + timedelta(days=self.increment),
-            'End_Date':self.table['End_Date'].max() + timedelta(days=self.increment),
-            'Model_Obj':None,
-            'Model_Eval':None,
-            'Env_Deps':None,
-            'Run_Flag':False,
-            'Run_Date':None
+            'Beg_Date': self.table['Beg_Date'].max() + timedelta(days=self.increment),
+            'End_Date': self.table['End_Date'].max() + timedelta(days=self.increment),
+            'Model_Obj': None,
+            'Model_Eval': None,
+            'Env_Deps': None,
+            'Run_Flag': False,
+            'Run_Date': None
         }
-        self.table.loc[len(self.table)] = new_row
-    
-    def update(self,model,eval_dict,env_deps,run_date):
+
+        if self.library == 'pandas':
+            self.table.loc[len(self.table)] = new_row
+        elif self.library == 'polars':
+            new_df = pl.DataFrame(new_row)
+            self.table = self.table.vstack(new_df, in_place=True)
+
+    def update(self, model, eval_dict, env_deps, run_date):
         """ Update Driver Table Given Some Output From Model Training."""
-        target_row = self.table[self.table['Run_Flag'] == False]['Beg_Date'].idxmin()
+        # Use Polars filter to find the target row for updating
+        if self.library == 'pandas':
+            target_row = self.table['Beg_Date'].idxmin()
+            print('got here 149')
+            if pd.isna(target_row):
+                print("No available row to update.")
+                return  # Exit if no available row
 
-        # update row values
-        self.table.loc[target_row,'Model_Obj'] = model
-        self.table.loc[target_row,'Model_Eval'] = str(eval_dict)
-        self.table.loc[target_row,'Env_Deps'] = str(env_deps)
-        self.table.loc[target_row,'Run_Flag'] = True
-        self.table.loc[target_row,'Run_Date'] = run_date
+            self.table.loc[target_row, 'Model_Obj'] = model
+            self.table.loc[target_row, 'Model_Eval'] = json.dumps(eval_dict)
+            self.table.loc[target_row, 'Env_Deps'] = json.dumps(env_deps)
+            self.table.loc[target_row, 'Run_Flag'] = True
+            self.table.loc[target_row, 'Run_Date'] = run_date
+        elif self.library == 'polars':
+            # Find the target row index
+            target_row_index = self.table['Beg_Date'].arg_min()
 
-        
+            # Construct the update expression
+            self.table = self.table.with_columns([
+                pl.when(pl.arange(0, self.table.height) == target_row_index)
+                .then(model)
+                .otherwise(pl.col('Model_Obj')).alias('Model_Obj'),
+                pl.when(pl.arange(0, self.table.height) == target_row_index)
+                .then(pl.lit(eval_dict))  # Use pl.lit() for literal value
+                .otherwise(pl.col('Model_Eval')).alias('Model_Eval'),
+                pl.when(pl.arange(0, self.table.height) == target_row_index)
+                .then(pl.lit(env_deps))  # Use pl.lit() for literal value
+                .otherwise(pl.col('Env_Deps')).alias('Env_Deps'),
+                pl.when(pl.arange(0, self.table.height) == target_row_index)
+                .then(True)
+                .otherwise(pl.col('Run_Flag')).alias('Run_Flag'),
+                pl.when(pl.arange(0, self.table.height) == target_row_index)
+                .then(run_date)
+                .otherwise(pl.col('Run_Date')).alias('Run_Date')
+            ])
 
-    def predict(self,args):
-        target_row = self.table[self.table['Run_Flag'] == True]['Beg_Date'].idxmax() 
-        model_bytes = self.table.loc[target_row,'Model_Obj']
-        model_scikit_version = json.loads(self.table.loc[target_row,'Env_Deps'])['scikit-learn']
-        
-        # check if model environment is the same the env 
-        if self._validate_env_req(model_scikit_version): # if False:
-            model = pickle.loads(model_bytes)
+    import json  # Ensure you have imported this
+
+    def predict(self, args,decompress=False):
+        if self.library == 'polars':
+            # Find the index of the max Beg_Date where Run_Flag is True
+            target_row = self.table.filter(pl.col('Run_Flag') == True)
+            
+            if target_row.is_empty():
+                raise ValueError("No model found to make a prediction.")
+
+            target_row_index = target_row['Beg_Date'].arg_max()
+
+            # Access the model object directly
+            model_bytes = self.table[target_row_index, 'Model_Obj']
+
+            # Now retrieve the Env_Deps
+            env_deps_str = self.table[target_row_index, 'Env_Deps']
+            try:
+                model_scikit_version = json.loads(env_deps_str)['scikit-learn']
+            except (json.JSONDecodeError, KeyError) as e:
+                raise ValueError(f"Env_Deps JSON parsing error: {e}")
+
+        else:  # For Pandas
+            target_row = self.table[self.table['Run_Flag'] == True]
+            
+            if target_row.empty:
+                raise ValueError("No model found to make a prediction.")
+
+            target_row_index = target_row['Beg_Date'].idxmax()
+
+            model_bytes = self.table.loc[target_row_index, 'Model_Obj']
+            env_deps_str = self.table.loc[target_row_index, 'Env_Deps']
+
+            try:
+                model_scikit_version = json.loads(json.loads(env_deps_str))['scikit-learn']
+            except (json.JSONDecodeError, KeyError) as e:
+                raise ValueError(f"Env_Deps JSON parsing error: {e}")
+
+        # Check if model environment is the same as the env
+        if self._validate_env_req(model_scikit_version):
+            if decompress:
+                model = pickle.loads(zlib.decompress(model_bytes))
+            else:
+                model = pickle.loads(model_bytes)
             return model.predict(args)
 
-        raise ValueError(f"Incompatible versions for model... update environment to scikit-learn version: {model_scikit_version}") 
-            
+        raise ValueError(f"Incompatible versions for model... update environment to scikit-learn version: {model_scikit_version}")
+
+
+
+
         
-    def _validate_env_req(self,model_scikit_version):
+
+    def _validate_env_req(self, model_scikit_version):
         env_scikit_version = json.loads(get_env_dependencies())['scikit-learn']
         return env_scikit_version == model_scikit_version
-
 
 
 

@@ -54,5 +54,27 @@ with looking_glass() as what:
 print('back to normal')
 
 
+# Else in For, Try, While loops 
+
+my_list  = [{"flavor":"Banana"},{"flavor":"cherry"},{"flavor":"banana"}]
+
+for item in my_list:
+    if item["flavor"] == "banana":
+        break 
+else:
+    raise ValueError('No banana flavor found!')
+
+import random
+char = ["cherry","blue","6","NaN","1.2","5i","car"][random.randint(1,6)]
+
+# seperate the logic between the breaking logic and the remaining logic
+try:
+    value = int(char) # breaking logic
+except ValueError as e:
+    raise ValueError(e)
+else:
+    value+=1 # remaining logic
+
+print(value)
 
 

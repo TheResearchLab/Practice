@@ -72,37 +72,83 @@
 #     main()
 
 """ Coroutines Example"""
-import asyncio 
-import itertools
+# import asyncio 
+# import itertools
+# import time
 
-async def spin(msg: str) -> None:
-    for char in itertools.cycle(r'\|/-'):
-        status = f'\r{char} {msg}'
-        print(status,flush=True,end='')
-        try:
-            await asyncio.sleep(.1)
-        except asyncio.CancelledError:
-            break 
+# async def spin(msg: str) -> None:
+#     for char in itertools.cycle(r'\|/-'):
+#         status = f'\r{char} {msg}'
+#         print(status,flush=True,end='')
+#         try:
+#             await asyncio.sleep(.1) # not quite understanding this
+#         except asyncio.CancelledError:
+#             break 
     
-    blanks = ' ' * len(status)
-    print(f'\r{blanks}\r', end='')
+#     blanks = ' ' * len(status)
+#     print(f'\r{blanks}\r', end='')
 
-async def slow() -> int:
-    await asyncio.sleep(3)
-    return 42
+# async def slow() -> int:
+#     await asyncio.sleep(3) # time.sleep here would block the GIL from allowing the spinner to run
+#     return 42
 
 
-async def supervisor() -> int:
-    spinner = asyncio.create_task(spin('thinking!')) # returns an asyncio.Task
-    print(f'spinner object: {spinner}')
-    result = await slow()
-    spinner.cancel()
-    return result 
+# async def supervisor() -> int:
+#     spinner = asyncio.create_task(spin('thinking!')) # returns an asyncio.Task
+#     print(f'spinner object: {spinner}')
+#     result = await slow()
+#     spinner.cancel()
+#     return result 
+
+# def main() -> None:
+#     result = asyncio.run(supervisor())
+#     print(f'Answer: {result}')
+
+
+# if __name__ == '__main__':
+#     main()
+
+""" GIL Impact Example"""
+import math
+
+def is_prime(n:int) -> bool:
+    if n<2:
+        return False
+    if n==2:
+        return True 
+    if n%2 == 0:
+        return False
+    
+    root = math.isqrt(n)
+    for i in range(3, root+1,2):
+        if n % 1 == 0:
+            return False
+    return True 
+
+from time import perf_counter
+from typing import NamedTuple
+
+NUMBERS = [2,142702110479723,299593572317531,3333335652092209,9999999999999917,5555553133149889]
+
+class Result(NamedTuple):
+    prime: bool
+    elapsed: float
+
+def check(n:int) -> Result:
+    t0 = perf_counter()
+    prime = is_prime(n)
+    return Result(prime,perf_counter() - t0)
 
 def main() -> None:
-    result = asyncio.run(supervisor())
-    print(f'Answer: {result}')
+    print(f'Checking {len(NUMBERS)} numbers sequentially:')
+    t0 = perf_counter()
+    for n in NUMBERS:
+        prime, elapsed = check(n)
+        label = 'P' if prime else ' '
+        print(f'{n:6} {label} {elapsed:9.6f}s')
 
+    elapsed = perf_counter() - t0 
+    print(f'Total time: {elapsed:.2f}s')
 
 if __name__ == '__main__':
     main()

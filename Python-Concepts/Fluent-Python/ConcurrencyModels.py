@@ -197,7 +197,7 @@ def worker(jobs: JobQueue, results: ResultQueue) -> None:
     results.put(PrimeResult(0,False,0.0))
 
 def start_jobs(
-        procs: int, jobs: JobQueue, results ResultQueue
+        procs: int, jobs: JobQueue, results: ResultQueue
 ) -> None:
     for n in NUMBERS:
         jobs.put(n)

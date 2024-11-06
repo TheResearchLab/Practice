@@ -146,7 +146,6 @@ class ModelRegistry:
         # Use Polars filter to find the target row for updating
         if self.library == 'pandas':
             target_row = self.table['Beg_Date'].idxmin()
-            print('got here 149')
             if pd.isna(target_row):
                 print("No available row to update.")
                 return  # Exit if no available row

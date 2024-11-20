@@ -1,18 +1,15 @@
 """Utilities for second set of flag examples.
 """
 
-import os
-import time
-import sys
-import string
 import argparse
-from collections import namedtuple
+import string
+import sys
+import time
+from collections import Counter
 from enum import Enum
+from pathlib import Path
 
-
-Result = namedtuple('Result', 'status data')
-
-HTTPStatus = Enum('Status', 'ok not_found error')
+DownloadStatus = Enum('DownloadStatus', 'OK NOT_FOUND ERROR')
 
 POP20_CC = ('CN IN US ID BR PK NG BD RU JP '
             'MX PH VN ET EG DE IR TR CD FR').split()
@@ -21,119 +18,129 @@ DEFAULT_CONCUR_REQ = 1
 MAX_CONCUR_REQ = 1
 
 SERVERS = {
-    'REMOTE': 'http://flupy.org/data/flags',
-    'LOCAL':  'http://localhost:8001/flags',
-    'DELAY':  'http://localhost:8002/flags',
-    'ERROR':  'http://localhost:8003/flags',
+    'REMOTE': 'https://www.fluentpython.com/data/flags',
+    'LOCAL':  'http://localhost:8000/flags',
+    'DELAY':  'http://localhost:8001/flags',
+    'ERROR':  'http://localhost:8002/flags',
 }
 DEFAULT_SERVER = 'LOCAL'
 
-DEST_DIR = 'downloads/'
-COUNTRY_CODES_FILE = 'country_codes.txt'
+DEST_DIR = Path('downloaded')
+COUNTRY_CODES_FILE = Path('country_codes.txt')
 
 
-def save_flag(img, filename):
-    path = os.path.join(DEST_DIR, filename)
-    with open(path, 'wb') as fp:
-        fp.write(img)
+def save_flag(img: bytes, filename: str) -> None:
+    (DEST_DIR / filename).write_bytes(img)
 
 
-def initial_report(cc_list, actual_req, server_label):
+def initial_report(cc_list: list[str],
+                   actual_req: int,
+                   server_label: str) -> None:
     if len(cc_list) <= 10:
         cc_msg = ', '.join(cc_list)
     else:
-        cc_msg = 'from {} to {}'.format(cc_list[0], cc_list[-1])
-    print('{} site: {}'.format(server_label, SERVERS[server_label]))
-    msg = 'Searching for {} flag{}: {}'
+        cc_msg = f'from {cc_list[0]} to {cc_list[-1]}'
+    print(f'{server_label} site: {SERVERS[server_label]}')
     plural = 's' if len(cc_list) != 1 else ''
-    print(msg.format(len(cc_list), plural, cc_msg))
-    plural = 's' if actual_req != 1 else ''
-    msg = '{} concurrent connection{} will be used.'
-    print(msg.format(actual_req, plural))
+    print(f'Searching for {len(cc_list)} flag{plural}: {cc_msg}')
+    if actual_req == 1:
+        print('1 connection will be used.')
+    else:
+        print(f'{actual_req} concurrent connections will be used.')
 
 
-def final_report(cc_list, counter, start_time):
-    elapsed = time.time() - start_time
+def final_report(cc_list: list[str],
+                 counter: Counter[DownloadStatus],
+                 start_time: float) -> None:
+    elapsed = time.perf_counter() - start_time
     print('-' * 20)
-    msg = '{} flag{} downloaded.'
-    plural = 's' if counter[HTTPStatus.ok] != 1 else ''
-    print(msg.format(counter[HTTPStatus.ok], plural))
-    if counter[HTTPStatus.not_found]:
-        print(counter[HTTPStatus.not_found], 'not found.')
-    if counter[HTTPStatus.error]:
-        plural = 's' if counter[HTTPStatus.error] != 1 else ''
-        print('{} error{}.'.format(counter[HTTPStatus.error], plural))
-    print('Elapsed time: {:.2f}s'.format(elapsed))
+    plural = 's' if counter[DownloadStatus.OK] != 1 else ''
+    print(f'{counter[DownloadStatus.OK]:3} flag{plural} downloaded.')
+    if counter[DownloadStatus.NOT_FOUND]:
+        print(f'{counter[DownloadStatus.NOT_FOUND]:3} not found.')
+    if counter[DownloadStatus.ERROR]:
+        plural = 's' if counter[DownloadStatus.ERROR] != 1 else ''
+        print(f'{counter[DownloadStatus.ERROR]:3} error{plural}.')
+    print(f'Elapsed time: {elapsed:.2f}s')
 
 
-def expand_cc_args(every_cc, all_cc, cc_args, limit):
-    codes = set()
+def expand_cc_args(every_cc: bool,
+                   all_cc: bool,
+                   cc_args: list[str],
+                   limit: int) -> list[str]:
+    codes: set[str] = set()
     A_Z = string.ascii_uppercase
     if every_cc:
         codes.update(a+b for a in A_Z for b in A_Z)
     elif all_cc:
-        with open(COUNTRY_CODES_FILE) as fp:
-            text = fp.read()
+        text = COUNTRY_CODES_FILE.read_text()
         codes.update(text.split())
     else:
         for cc in (c.upper() for c in cc_args):
             if len(cc) == 1 and cc in A_Z:
-                codes.update(cc+c for c in A_Z)
+                codes.update(cc + c for c in A_Z)
             elif len(cc) == 2 and all(c in A_Z for c in cc):
                 codes.add(cc)
             else:
-                msg = 'each CC argument must be A to Z or AA to ZZ.'
-                raise ValueError('*** Usage error: '+msg)
+                raise ValueError('*** Usage error: each CC argument '
+                                 'must be A to Z or AA to ZZ.')
     return sorted(codes)[:limit]
 
 
 def process_args(default_concur_req):
     server_options = ', '.join(sorted(SERVERS))
     parser = argparse.ArgumentParser(
-                description='Download flags for country codes. '
-                'Default: top 20 countries by population.')
-    parser.add_argument('cc', metavar='CC', nargs='*',
-                help='country code or 1st letter (eg. B for BA...BZ)')
-    parser.add_argument('-a', '--all', action='store_true',
-                help='get all available flags (AD to ZW)')
-    parser.add_argument('-e', '--every', action='store_true',
-                help='get flags for every possible code (AA...ZZ)')
-    parser.add_argument('-l', '--limit', metavar='N', type=int,
-                help='limit to N first codes', default=sys.maxsize)
-    parser.add_argument('-m', '--max_req', metavar='CONCURRENT', type=int,
-                default=default_concur_req,
-                help='maximum concurrent requests (default={})'
-                      .format(default_concur_req))
-    parser.add_argument('-s', '--server', metavar='LABEL',
-                default=DEFAULT_SERVER,
-                help='Server to hit; one of {} (default={})'
-                      .format(server_options, DEFAULT_SERVER))
-    parser.add_argument('-v', '--verbose', action='store_true',
-                help='output detailed progress info')
+        description='Download flags for country codes. '
+                    'Default: top 20 countries by population.')
+    parser.add_argument(
+        'cc', metavar='CC', nargs='*',
+        help='country code or 1st letter (eg. B for BA...BZ)')
+    parser.add_argument(
+        '-a', '--all', action='store_true',
+        help='get all available flags (AD to ZW)')
+    parser.add_argument(
+        '-e', '--every', action='store_true',
+        help='get flags for every possible code (AA...ZZ)')
+    parser.add_argument(
+        '-l', '--limit', metavar='N', type=int, help='limit to N first codes',
+        default=sys.maxsize)
+    parser.add_argument(
+        '-m', '--max_req', metavar='CONCURRENT', type=int,
+        default=default_concur_req,
+        help=f'maximum concurrent requests (default={default_concur_req})')
+    parser.add_argument(
+        '-s', '--server', metavar='LABEL', default=DEFAULT_SERVER,
+        help=f'Server to hit; one of {server_options} '
+             f'(default={DEFAULT_SERVER})')
+    parser.add_argument(
+        '-v', '--verbose', action='store_true',
+        help='output detailed progress info')
     args = parser.parse_args()
     if args.max_req < 1:
         print('*** Usage error: --max_req CONCURRENT must be >= 1')
         parser.print_usage()
-        sys.exit(1)
+        # "standard" exit status codes:
+        # https://stackoverflow.com/questions/1101957/are-there-any-standard-exit-status-codes-in-linux/40484670#40484670
+        sys.exit(2)  # command line usage error
     if args.limit < 1:
         print('*** Usage error: --limit N must be >= 1')
         parser.print_usage()
-        sys.exit(1)
+        sys.exit(2)  # command line usage error
     args.server = args.server.upper()
     if args.server not in SERVERS:
-        print('*** Usage error: --server LABEL must be one of',
-              server_options)
+        print(f'*** Usage error: --server LABEL '
+              f'must be one of {server_options}')
         parser.print_usage()
-        sys.exit(1)
+        sys.exit(2)  # command line usage error
     try:
         cc_list = expand_cc_args(args.every, args.all, args.cc, args.limit)
     except ValueError as exc:
         print(exc.args[0])
         parser.print_usage()
-        sys.exit(1)
+        sys.exit(2)  # command line usage error
 
     if not cc_list:
-        cc_list = sorted(POP20_CC)
+        cc_list = sorted(POP20_CC)[:args.limit]
     return args, cc_list
 
 
@@ -142,8 +149,7 @@ def main(download_many, default_concur_req, max_concur_req):
     actual_req = min(args.max_req, max_concur_req, len(cc_list))
     initial_report(cc_list, actual_req, args.server)
     base_url = SERVERS[args.server]
-    t0 = time.time()
+    DEST_DIR.mkdir(exist_ok=True)
+    t0 = time.perf_counter()
     counter = download_many(cc_list, base_url, args.verbose, actual_req)
-    assert sum(counter.values()) == len(cc_list), \
-        'some downloads are unaccounted for'
     final_report(cc_list, counter, t0)

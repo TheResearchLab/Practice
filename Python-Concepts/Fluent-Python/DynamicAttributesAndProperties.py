@@ -94,91 +94,186 @@
 #         return self.__data.keys()
 
 """Making Event Objects for Easier Retrieval"""
-import inspect
-import json 
-from functools import cached_property, cache
+# import inspect
+# import json 
+# from functools import cached_property, cache
 
-JSON_PATH = r'python-concepts/fluent-python/osconfeed.json'
+# JSON_PATH = r'python-concepts/fluent-python/osconfeed.json'
 
-class Record:
-    __index = None
+# class Record:
+#     __index = None
     
-    def __init__(self,**kwargs):
-        self.__dict__.update(kwargs)
+#     def __init__(self,**kwargs):
+#         self.__dict__.update(kwargs)
 
-    def __repr__(self):
-        return f'<{self.__class__.__name__} serial={self.serial!r}>'
+#     def __repr__(self):
+#         return f'<{self.__class__.__name__} serial={self.serial!r}>'
 
-    @staticmethod 
-    def fetch(key):
-        if Record.__index is None:
-            Record.__index = load()
-            return Record.__index[key] 
+#     @staticmethod 
+#     def fetch(key):
+#         if Record.__index is None:
+#             Record.__index = load()
+#             return Record.__index[key] 
     
-def load(path=JSON_PATH):
-    records = {}
-    with open(path) as fp:
-        raw_data = json.load(fp)
-    for collection, raw_records in raw_data['Schedule'].items():
-        record_type = collection[:-1]
-        for raw_record in raw_records:
-            key = f'{record_type}.{raw_record["serial"]}'
-            records[key] = Record(**raw_record)
-    return records
-
-    
-records = load(JSON_PATH)
-speaker = records['speaker.3471']
-print(speaker)
-print(speaker.name, speaker.twitter)
-
-event = Record.fetch('event.33950')
-print(event)
-print(event.venue_serial)
-
-class Event(Record):
-
-    def __init__(self, **kwargs):
-        self.__speaker_objs = None 
-        super().__init__(**kwargs)
-    
-    def __repr__(self):
-        try:
-            return f'<{self.__class__.__name__} {self.name!r}'
-        except AttributeError:
-            return super().__repr__()
-
-    @property
-    @cache
-    def venue(self):
-        key = f'venue.{self.venue_serial}'
-        return self.__class__.fetch(key) # use class method to retrieve fetch because if fetch was an attr of event self.fetch would retrieve that
-
-    @property
-    def speakers(self):
-        if self.__speaker_objs is None:
-            spkr_serials = self.__dict__['speakers']
-            fetch = self.__class__.fetch 
-            self.__speaker_objs = [fetch(f'speaker.{key}')
-                                    for key in spkr_serials]
-        return self.__speaker_objs
-
-def load(path=JSON_PATH):
-    records = {}
-    with open(path) as fp:
-        raw_data = json.load(fp)
-    for collection, raw_records in raw_data['Schedule'].items():
-        record_type = collection[:-1]
-        cls_name = record_type.capitalize()
-        cls = globals().get(cls_name, Record)
-        if inspect.isclass(cls) and issubclass(cls,Record):
-            factory = cls 
-        else:
-            factory = Record 
-        for raw_record in raw_records:
-            key = f'{record_type}.{raw_record["serial"]}'
-            records[key] = factory(**raw_record)
-    return records 
-
+# def load(path=JSON_PATH):
+#     records = {}
+#     with open(path) as fp:
+#         raw_data = json.load(fp)
+#     for collection, raw_records in raw_data['Schedule'].items():
+#         record_type = collection[:-1]
+#         for raw_record in raw_records:
+#             key = f'{record_type}.{raw_record["serial"]}'
+#             records[key] = Record(**raw_record)
+#     return records
 
     
+# records = load(JSON_PATH)
+# speaker = records['speaker.3471']
+# print(speaker)
+# print(speaker.name, speaker.twitter)
+
+# event = Record.fetch('event.33950')
+# print(event)
+# print(event.venue_serial)
+
+# class Event(Record):
+
+#     def __init__(self, **kwargs):
+#         self.__speaker_objs = None 
+#         super().__init__(**kwargs)
+    
+#     def __repr__(self):
+#         try:
+#             return f'<{self.__class__.__name__} {self.name!r}'
+#         except AttributeError:
+#             return super().__repr__()
+
+#     @property
+#     @cache
+#     def venue(self):
+#         key = f'venue.{self.venue_serial}'
+#         return self.__class__.fetch(key) # use class method to retrieve fetch because if fetch was an attr of event self.fetch would retrieve that
+
+#     @property
+#     def speakers(self):
+#         if self.__speaker_objs is None:
+#             spkr_serials = self.__dict__['speakers']
+#             fetch = self.__class__.fetch 
+#             self.__speaker_objs = [fetch(f'speaker.{key}')
+#                                     for key in spkr_serials]
+#         return self.__speaker_objs
+
+# def load(path=JSON_PATH):
+#     records = {}
+#     with open(path) as fp:
+#         raw_data = json.load(fp)
+#     for collection, raw_records in raw_data['Schedule'].items():
+#         record_type = collection[:-1]
+#         cls_name = record_type.capitalize()
+#         cls = globals().get(cls_name, Record)
+#         if inspect.isclass(cls) and issubclass(cls,Record):
+#             factory = cls 
+#         else:
+#             factory = Record 
+#         for raw_record in raw_records:
+#             key = f'{record_type}.{raw_record["serial"]}'
+#             records[key] = factory(**raw_record)
+#     return records 
+
+
+"""Properties for Attribute Validation (Business Rule Validation)"""
+
+# class LineItem:
+
+#     def __init__(self,description,weight,price):
+#         self.description = description
+#         self.weight = weight 
+#         self.price = price 
+
+#     def subtotal(self):
+#         return self.weight * self.price
+    
+#     @property
+#     def weight(self):
+#         return self.__weight 
+
+#     @weight.setter 
+#     def weight(self,value):
+#         if value > 0:
+#             self.__weight = value 
+#         else:
+#             raise ValueError('value must be > 0')
+
+# harry_potter_book = LineItem('Harry Potter',-2,45.00)
+# print(harry_potter_book.subtotal())
+
+"""Properties override instance attributes"""
+# class Class:
+#     data = 'the class data attr'
+#     @property 
+#     def prop(self):
+#         return 'the prop value'
+
+# obj = Class()
+# print(vars(obj))
+# print(obj.data)
+# obj.data = 'bar'
+# print(vars(obj))
+# print(obj.data)
+# print(Class.data,end='\n \noverride prop attr\n \n')
+
+# # override prop attribute 
+
+# print(Class.prop)
+# print(obj.prop)
+# # obj.prop = 'foo' # attribute error, property has no setter method 
+# obj.__dict__['prop'] = 'foo'
+# print(vars(obj))
+# print(obj.prop)
+# Class.prop = 'baz'
+# print(obj.prop,end='\n \nAdd new property and overshadow instance attr\n \n')
+
+# print(obj.data)
+# print(Class.data)
+# Class.data = property(lambda self: 'the "data" prop value') # using the property function to monkey patch a property method
+# print(obj.data) # instance value is overshadowed by Class property
+# del Class.data # garbage collection
+# print(obj.data)
+
+"""Documentation for a property"""
+# class Foo:
+
+#     @property
+#     def bar(self):
+#         """The bar attribute"""
+#         return self.__dict__['bar']
+    
+#     @bar.setter 
+#     def bar(self,value):
+#         self.__dict__['bar'] = value 
+
+""" LineItem Class protecting weight and price attributes """
+# def quantity(storage_name):
+#     def qty_getter(instance):
+#         return instance.__dict__[storage_name]
+    
+#     def qty_setter(instance,value):
+#         if value > 0:
+#             instance.__dict__[storage_name] = value 
+#         else:
+#             raise ValueError('value must > 0')
+    
+#     return property(qty_getter, qty_setter)
+
+# class LineItem:
+#     weight = quantity('weight')
+#     price = quantity('price')
+
+#     def __init__(self,description, weight, price):
+#         self.description = description 
+#         self.weight = weight 
+#         self.price = price 
+    
+#     def subtotal(self):
+#         return self.weight * self.price 
+

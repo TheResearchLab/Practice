@@ -31,31 +31,95 @@
 
 """ Automatic Naming of Storage Attributes """
 
-class Quantity:
+# class Quantity:
 
-    def __set_name__(self,owner,name):
-        self.storage_name = name 
+#     def __set_name__(self,owner,name):
+#         self.storage_name = name 
     
-    def __set__(self,instance,value):
-        if value > 0:
-            instance.__dict__[self.storage_name] = value 
-        else:
-            msg = f'{self.storage_name} must be > 0'
-            raise ValueError(msg)
+#     def __set__(self,instance,value):
+#         if value > 0:
+#             instance.__dict__[self.storage_name] = value 
+#         else:
+#             msg = f'{self.storage_name} must be > 0'
+#             raise ValueError(msg)
 
-class LineItem:
+# class LineItem:
 
-    weight = Quantity()
-    price = Quantity()
+#     weight = Quantity()
+#     price = Quantity()
 
-    def __init__(self,description,price,weight):
-        self.description = description
-        self.price = price 
-        self.weight = weight 
+#     def __init__(self,description,price,weight):
+#         self.description = description
+#         self.price = price 
+#         self.weight = weight 
     
-    def subtotal(self):
-        return self.weight * self.price 
+#     def subtotal(self):
+#         return self.weight * self.price 
     
-print(LineItem('Blue Car',0,12))
+# print(LineItem('Blue Car',0,12))
 
 """ Leveraging Inheritance In Your Descriptor """
+# import abc 
+
+# class Validated(abc.ABC):
+    
+#     def __set_name__(self,owner,name):
+#         self.storage_name = name 
+    
+#     def __set__(self,instance,value):
+#         value = self.validate(self.storage_name, value)
+#         instance.__dict__[self.storage_name] = value 
+    
+#     abc.abstractmethod
+#     def validate(self, name, value):
+#         """return validated value or raise ValueError"""
+
+# class NonBlank(Validated): 
+#     """ Get a string with at least 1 non white space"""
+#     def validated(self, name, value):
+#         value = value.strip()
+#         if not value:
+#             raise ValueError('f{name} cannot be blank')
+      
+
+
+# class Quantity(Validated):
+#     """ a number greater than zero"""
+#     def validated(self,name,value):
+#         if value <= 0:
+#             raise ValueError(f'{name} must be > 0')
+#         return value 
+
+# class LineItem:
+#     description = NonBlank()
+#     weight = Quantity()
+#     price = Quantity()
+
+#     def __init__(self,description,price,weight):
+#         self.description = description 
+#         self.price = price 
+#         self.weight = weight 
+    
+#     def subtotal(self):
+#         return self.weight * self.price 
+
+""" Intro to Nonoverriding Descriptors """
+def cls_name(obj_or_cls):
+    cls = type(obj_or_cls)
+    if cls is type:
+        cls = obj_or_cls 
+    return cls.__name__.split('.')[-1]
+
+def display(obj):
+    cls = type(obj)
+    if cls is type:
+        return f'<class {obj.__name__}>'
+    elif cls in [type(None), int]:
+        return repr(obj)
+    else:
+        return f'<{cls_name(obj)} object>'
+
+def print_args(name, *args):
+    psuedo_args = ', '.join(display(x) for x in args)
+    print(f'-> {cls_name(args[0])}.__{name}__({psuedo_args})')
+

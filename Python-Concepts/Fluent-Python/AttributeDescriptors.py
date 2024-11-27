@@ -123,3 +123,29 @@ def print_args(name, *args):
     psuedo_args = ', '.join(display(x) for x in args)
     print(f'-> {cls_name(args[0])}.__{name}__({psuedo_args})')
 
+class Overriding:
+    """ a.k.a data desriptor or enforced descriptor """
+    def __get__(self,instance,owner):
+        print_args('get', self, instance, owner)
+    
+    def __set__(self,instance,value):
+        print_args('set',self,instance,value)
+    
+class OverridingNoGet:
+    """ an overriding descriptor without __get__"""
+    def __set__(self,instance,value):
+        print_args('set',self,instance,value)
+
+class NonOverriding:
+    """ a.k.a non-data or shadowable descriptor """
+    def __get__(self,instance,owner):
+        print_args('get',self,instance,owner) # No set method means non-overriding
+
+class Managed:
+    over = Overriding()
+    over_no_get = OverridingNoGet()
+    non_over = NonOverriding()
+
+    def spam(self):
+        print(f'-> Manged.spam({display(self)})')
+    

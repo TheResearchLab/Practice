@@ -149,3 +149,69 @@ class Managed:
     def spam(self):
         print(f'-> Manged.spam({display(self)})')
     
+# Example Instances - Overriding Class
+# obj = Managed()
+# obj.over # call instance property
+# Managed.over # call class property 
+# obj.over = 7 
+# obj.over
+# obj.__dict__['over'] = 8
+# print(vars(obj)) # vars gets an object's attributes?
+# obj.over
+
+# Example Instances - Overriding No Get Class 
+# obj = Managed()
+# obj.over_no_get # nothing retrieved because no get method 
+# obj.over_no_get = 7 
+# print(obj.over_no_get) 
+# obj.__dict__['over_no_get'] = 9
+# print(obj.over_no_get)
+# obj.over_no_get = 7 # sets value to descriptor instance
+# print(obj.over_no_get) # return 9 because when there is no get method defined, python hits the instance dict for values first 
+
+# Example Instance - Non Overriding Descriptor 
+# obj = Managed()
+# obj.non_over 
+# obj.non_over = 7 # no set will cause this value to store in instance 
+# print(obj.non_over) 
+# print(obj.__dict__['non_over'])
+# Managed.non_over # class non_over attr still exists 
+# del obj.non_over 
+# obj.non_over # should return descriptor get
+
+# Example Instance - Changes to Class Attributes (Monkey-Patching)
+# obj = Managed()
+# Managed.over = 1 
+# Managed.non_over = 1 
+# Managed.over_no_get = 1
+
+# print(obj.over,obj.over_no_get,obj.non_over)
+
+# Methods are nonoverriding descriptors
+# obj = Managed()
+# print(obj.spam) 
+# print(Managed.spam)
+# obj.spam = 5 
+# print(obj.spam)
+
+
+import collections 
+
+class Text(collections.UserString):
+
+    def __repr__(self):
+        return 'Text({!r})'.format(self.data)
+    
+    def reverse(self):
+        return self[::-1]
+
+word = Text('forward')
+print(word)
+print(word.reverse())
+print(Text.reverse(Text('backward')))
+print(type(Text.reverse),type(word.reverse))
+print(list(map(Text.reverse, ['repaid',(10,20,30), Text('stressed')])))
+print(Text.reverse.__get__(word))
+print(Text.reverse.__get__(None, Text))
+print(word.reverse.__self__)
+print(word.reverse.__func__ is Text.reverse) 

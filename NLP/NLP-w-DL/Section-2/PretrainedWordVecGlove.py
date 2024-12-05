@@ -45,8 +45,8 @@ def find_analogies(w1,w2,w3):
     man = word2vec[w2]
     woman = word2vec[w3]
     v0 = king - man + woman 
-
-    distances = pairwise_distances(v0.reshape(1,D), embedding, metric=metric).reshape(V) # pairwise function will iterate over table anyway... basically same implementation as above
+  
+    distances = pairwise_distances(v0.reshape(1,D),embedding, metric=metric).reshape(V) # pairwise function will iterate over table anyway... basically same implementation as above
     idx = distances.argmin()
     best_word = idx2word[idx]
     print(f"{w1} - {w2} = {best_word} - {w3}")
@@ -66,4 +66,28 @@ def nearest_neighbors(w,n=5):
     for idx in idxs:
         print("\t%s" % idx2word[idx])
 
+
+print('Loading word vectors...')
+word2vec = {}
+embedding = []
+idx2word = []
+with open(r'NLP\NLP-w-DL\preprocessed_data\glove.6b\glove.6B.50d.txt',encoding='utf-8') as f:
+  # is just a space-separated text file in the format:
+  # word vec[0] vec[1] vec[2] ...
+  for line in f:
+    values = line.split()
+    word = values[0]
+    vec = np.asarray(values[1:], dtype='float32')
+    word2vec[word] = vec
+    embedding.append(vec)
+    idx2word.append(word)
+print('Found %s word vectors.' % len(word2vec))
+embedding = np.array(embedding)
+V, D = embedding.shape
+
+find_analogies('king','man','woman')
+find_analogies('man','woman','sister')
+find_analogies('father','son','mother')
+nearest_neighbors('king')
+nearest_neighbors('japan')
 

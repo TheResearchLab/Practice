@@ -11,17 +11,17 @@
 # compare model evaluations and dependencies (maybe alter dependencies in-between training)
 
 
+import pkg_resources
+from packaging.version import Version
+import json
+import zlib
+import pickle
 import pandas as pd
 import numpy as np
 from datetime import datetime,timedelta
-from typing import Tuple
+from typing import Tuple,Union,Optional
 from sklearn.model_selection import train_test_split
 from sklearn.linear_model import LinearRegression
-import pickle
-import json
-import pkg_resources
-from packaging.version import Version
-import zlib
 import polars as pl
 
 
@@ -35,7 +35,7 @@ def get_env_dependencies() -> str:
 
 class DataGenerator:
 
-    def __init__(self,start_dt,n_rows,n_cols,min_value,max_value,intercept,noise,slope):
+    def __init__(self,start_dt:datetime, n_rows:int,n_cols:int,min_value:float,max_value:float,intercept:float,noise:float,slope:float) -> None:
         """ Generate Random Dataset For Use Case"""
         self.n_rows = n_rows
         self.n_cols = n_cols
@@ -58,14 +58,14 @@ class DataGenerator:
         self.table = pd.DataFrame.from_dict(data)
         
 
-    def get_train_test_data(self,beg_dt,end_dt) -> Tuple[pd.DataFrame,pd.Series,pd.DataFrame,pd.Series]:
+    def get_train_test_data(self,beg_dt:datetime,end_dt:datetime) -> Tuple[pd.DataFrame,pd.Series,pd.DataFrame,pd.Series]:
         """ Return X and y Train & Test Data """
         X = self.table[(self.table['Date'] >= beg_dt) & (self.table['Date'] < end_dt)].drop(['Date','Target'],axis=1)
         y = self.table[(self.table['Date'] >= beg_dt) & (self.table['Date'] < end_dt)]['Target']
         return train_test_split(X,y,test_size=.3)
 
     
-    def add_rows(self,n_rows,min_value,max_value,intercept,noise,slope):
+    def add_rows(self,n_rows:int,min_value:float,max_value:float,intercept:float,noise:float,slope:float) -> None:
         """ Simulates Data Generation Process """
         new_data_generator = DataGenerator.__new__(DataGenerator)
         start_dt = self.start_dt + timedelta(days = self.n_rows)
@@ -86,7 +86,7 @@ class DataGenerator:
 
 class ModelRegistry:
 
-    def __init__(self, start_dt, increment, n_rows, library='pandas'):
+    def __init__(self, start_dt:datetime, increment:int, n_rows:int, library:str ='pandas') -> None:
         self.start_dt = start_dt
         self.increment = increment
         self.n_rows = n_rows
@@ -117,13 +117,19 @@ class ModelRegistry:
 
     @property
     def next_beg_dt(self):
-        return self.table.filter(pl.col('Run_Flag') == False)['Beg_Date'].min() 
+        if self.library == 'polars':
+            return self.table.filter(pl.col('Run_Flag') == False)['Beg_Date'].min() 
+        else:
+            return self.table[self.table['Run_Flag'] == False]['Beg_Date'].min()
 
     @property
-    def next_end_dt(self):
-        return self.table.filter(pl.col('Run_Flag') == False)['End_Date'].min()
+    def next_end_dt(self) -> Optional[Union[pd.Timestamp,pl.Date]]:
+        if self.library == 'polars':
+            return self.table.filter(pl.col('Run_Flag') == False)['End_Date'].min() 
+        else:
+            return self.table[self.table['Run_Flag'] == False]['End_Date'].min()
 
-    def _insert(self):
+    def _insert(self) -> None:
         """ Adds A New Row To Table For Future Run."""
         new_row = {
             'Beg_Date': self.table['Beg_Date'].max() + timedelta(days=self.increment),

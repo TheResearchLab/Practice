@@ -19,7 +19,7 @@ import pickle
 import pandas as pd
 import numpy as np
 from datetime import datetime,timedelta
-from typing import Tuple,Union,Optional
+from typing import Tuple,Union,Optional,Any
 from sklearn.model_selection import train_test_split
 from sklearn.linear_model import LinearRegression
 import polars as pl
@@ -116,7 +116,7 @@ class ModelRegistry:
             self.table = pl.DataFrame(data)
 
     @property
-    def next_beg_dt(self):
+    def next_beg_dt(self) -> Optional[Union[pd.Timestamp,pl.Date]]:
         if self.library == 'polars':
             return self.table.filter(pl.col('Run_Flag') == False)['Beg_Date'].min() 
         else:
@@ -147,14 +147,14 @@ class ModelRegistry:
             new_df = pl.DataFrame(new_row)
             self.table = self.table.vstack(new_df, in_place=True)
 
-    def update(self, model, eval_dict, env_deps, run_date):
+    def update(self, model:str, eval_dict:dict[str,Any], env_deps:dict[str,Any], run_date:datetime) -> None:
         """ Update Driver Table Given Some Output From Model Training."""
         # Use Polars filter to find the target row for updating
         if self.library == 'pandas':
             target_row = self.table['Beg_Date'].idxmin()
             if pd.isna(target_row):
                 print("No available row to update.")
-                return  # Exit if no available row
+                return None  # Exit if no available row
 
             self.table.loc[target_row, 'Model_Obj'] = model
             self.table.loc[target_row, 'Model_Eval'] = json.dumps(eval_dict)
@@ -184,9 +184,8 @@ class ModelRegistry:
                 .otherwise(pl.col('Run_Date')).alias('Run_Date')
             ])
 
-    import json  # Ensure you have imported this
 
-    def predict(self, args,decompress=False):
+    def predict(self, args:np.ndarray,decompress:bool=False) -> np.ndarray:
         if self.library == 'polars':
             # Find the index of the max Beg_Date where Run_Flag is True
             target_row = self.table.filter(pl.col('Run_Flag') == True)
@@ -234,10 +233,7 @@ class ModelRegistry:
 
 
 
-
-        
-
-    def _validate_env_req(self, model_scikit_version):
+    def _validate_env_req(self, model_scikit_version:str) -> bool:
         env_scikit_version = json.loads(get_env_dependencies())['scikit-learn']
         return env_scikit_version == model_scikit_version
 
@@ -245,37 +241,25 @@ class ModelRegistry:
 
 class MyLinearModel:
 
-    def __init__(self):
+    def __init__(self) -> None:
         """ Creates Simple Linear Regression Model For Example"""
         self.model = LinearRegression()
         self.model_pkl = pickle.dumps(self.model)
         self.model_eval = {}
         
 
-    def train(self,X_train,y_train): #Update model pkl object attribute
+    def train(self,X_train:np.ndarray,y_train:np.ndarray) -> None: #Update model pkl object attribute
         self.model = self.model.fit(X_train,y_train)
         self.model_pkl = pickle.dumps(self.model)
 
-    def evaluate(self,X_test,y_test): #Update evaluation dict object attribute
+    def evaluate(self,X_test:np.ndarray,y_test:np.ndarray) -> None: #Update evaluation dict object attribute
         self.model_eval = {'test_score':self.model.score(X_test,y_test)}
-    
-        
-
-def generate_requirements_file(requirement_json):
-    packages = json.loads(requirement_json)
-    
-    with open('requirements.txt','w') as f:
-        for package,version in packages.items():
-            f.write(f"{package}=={version}\n")
-
-# generate requirements.txt based on model env dependencies
-# generate_requirements_file(get_env_dependencies())
 
     
 
 
 # Main Function
-def main():
+def main() -> None:
 
     # Model Registry Table Example
     driver_table = ModelRegistry(datetime(2023,1,1),101,12)

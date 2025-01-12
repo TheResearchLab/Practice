@@ -1,14 +1,15 @@
 #%%
-# PART 1 - create model and predict using driver table
-# create driver table & create synthetic data objects
-# get train data from DataGenerator based on ModelRegistry beg and end_dts
-# train MyLinearModel and input those object outputs into the ModelRegistry update method
-# predict with the model from the ModelRegistry update
+""" 
+PART 1 - create model and predict using driver table
+1. create driver table & create synthetic data objects
+2. get train data from DataGenerator based on ModelRegistry beg and end_dts
+3. train MyLinearModel and input those object outputs into the ModelRegistry update method
+4. predict with the model from the ModelRegistry update
 
-# PART 2 - create another model and compare models against each other
-# insert 2 new rows into the ModelRegistry object and generate more rows for DataGenerator
-# repeat steps from PART 1 to generate another model
-# compare model evaluations and dependencies (maybe alter dependencies in-between training)
+PART 2 - create another model and compare models against each other
+1. insert 2 new rows into the ModelRegistry object and generate more rows for DataGenerator
+2. repeat steps from PART 1 to generate another model
+"""
 
 
 import pkg_resources
@@ -262,8 +263,8 @@ class MyLinearModel:
 def main() -> None:
 
     # Model Registry Table Example
-    driver_table = ModelRegistry(datetime(2023,1,1),101,12)
-    driver_table.table 
+    registry_table = ModelRegistry(datetime(2023,1,1),101,12)
+    registry_table.table 
 
     # Generate Sample Data 
     n_rows = 100
@@ -289,11 +290,11 @@ def main() -> None:
     myModel.evaluate(X_test.values,y_test.values)
 
     # update driver table with new model
-    driver_table.update(myModel.model_pkl,myModel.model_eval,get_env_dependencies(),datetime(2023,4,13))
-    driver_table.table
+    registry_table.update(myModel.model_pkl,myModel.model_eval,get_env_dependencies(),datetime(2023,4,13))
+    registry_table.table
 
     # Make a prediction using the ModelRegistry object
-    prediction = driver_table.predict(np.array([44, 44, 44, 44]).reshape(1, -1))[0]
+    prediction = registry_table.predict(np.array([44, 44, 44, 44]).reshape(1, -1))[0]
     print(prediction)
 
 
@@ -316,11 +317,11 @@ def main() -> None:
     myModel.evaluate(X_test.values,y_test.values)
 
     #update registry
-    driver_table.update(myModel.model_pkl,myModel.model_eval,get_env_dependencies(),datetime(2023,7,23))
-    driver_table.table
+    registry_table.update(myModel.model_pkl,myModel.model_eval,get_env_dependencies(),datetime(2023,7,23))
+    registry_table.table
 
     # Make a prediction using the newest ModelRegistry object
-    prediction = driver_table.predict(np.array([44, 44, 44, 44]).reshape(1, -1))[0]
+    prediction = registry_table.predict(np.array([44, 44, 44, 44]).reshape(1, -1))[0]
     print(prediction)
 
 

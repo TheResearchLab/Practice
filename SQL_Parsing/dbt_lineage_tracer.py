@@ -989,15 +989,6 @@ def format_context_for_llm(technical_context):
                 for upstream in step["upstream_lineage"]:
                     dep = upstream["dependency"]
                     llm_context.append(f"    - {dep['table']}.{dep['column']} → {dep['context']}")
-            
-            llm_context.append("  Issue Investigation Points:")
-            llm_context.append("    - Aggregation logic - verify grouping and calculation")
-            llm_context.append("    - Data completeness - check for missing records in aggregation")
-            
-            llm_context.append("  Development Planning Notes:")
-            llm_context.append("    - Schema changes require aggregation logic updates")
-            llm_context.append("    - Consider materialization for performance")
-            llm_context.append("    - Multiple column dependencies - coordinate changes carefully")
         else:
             llm_context.append(f"\nSTEP {step['step']}: TRANSFORMATION")
             llm_context.append(f"  Table: {step['table']}")
@@ -1044,16 +1035,6 @@ def format_context_for_llm(technical_context):
                 llm_context.append(f"  Data Dependencies: {step['data_dependencies']}")
             if step.get("control_dependencies"):
                 llm_context.append(f"  Control Dependencies: {step['control_dependencies']}")
-            
-            if step.get("issue_investigation_points"):
-                llm_context.append("  Issue Investigation Points:")
-                for point in step["issue_investigation_points"]:
-                    llm_context.append(f"    - {point}")
-            
-            if step.get("development_planning_notes"):
-                llm_context.append("  Development Planning Notes:")
-                for note in step["development_planning_notes"]:
-                    llm_context.append(f"    - {note}")
     
     # Use Case Specific Sections - REMOVED per user request
     # The generic use case guidance was not needed for production use
@@ -1126,53 +1107,57 @@ def quick_lineage_summary(compiled_sql_directory: str, presentation_table: str, 
         return None
 
 
-def test_available_tables(compiled_sql_directory: str):
-    """
-    Quick test to see what tables are available for testing
-    """
-    print("="*60)
-    print("AVAILABLE TABLES FOR TESTING")
-    print("="*60)
-    
-    try:
-        tracer = DBTLineageTracer(compiled_sql_directory)
-        
-        tables = list(tracer.table_to_file_map.keys())
-        print(f"Found {len(tables)} tables:")
-        
-        # Show first 20 tables
-        for i, table in enumerate(tables[:20]):
-            print(f"  - {table}")
-        
-        if len(tables) > 20:
-            print(f"  ... and {len(tables) - 20} more")
-        
-        print(f"\n💡 To test lineage, pick any table name from above")
-        
-    except Exception as e:
-        print(f"Error: {e}")
-
-
 # Old function removed - using new comprehensive analysis instead
 
 
 # Example usage
 if __name__ == "__main__":
-    # Test configuration for multiple source columns
-    compiled_sql_directory = "compiled"
-    presentation_table = "fct_customer_orders"
-    target_column = "customer_segment"  # This should have multiple source dependencies
-    internal_db_prefixes = ['ph_']
+    import argparse
     
-    print("🔧 RUNNING NEW COMPREHENSIVE ANALYSIS")
-    print("="*60)
+    parser = argparse.ArgumentParser(description='DBT Multi-File Column Lineage Tracer')
+    parser.add_argument('table', help='Name of the presentation table to analyze')
+    parser.add_argument('column', help='Name of the column to trace')
+    parser.add_argument('--compiled-dir', default='compiled', 
+                        help='Path to dbt compiled SQL directory (default: compiled)')
+    parser.add_argument('--internal-prefixes', nargs='+', default=['ph_'], 
+                        help='Database prefixes for internal tables (default: ph_)')
+    parser.add_argument('--verbose', '-v', action='store_true', 
+                        help='Show detailed LLM-ready technical context')
     
-    # Quick summary for development planning
-    # print("🚀 QUICK DEVELOPMENT PLANNING SUMMARY:")
-    # quick_result = quick_lineage_summary(compiled_sql_directory, presentation_table, target_column, internal_db_prefixes)
+    args = parser.parse_args()
     
-    print("\n" + "="*100)
+    print("🔧 DBT COLUMN LINEAGE TRACER")
+    print("="*50)
+    print(f"📋 Table: {args.table}")
+    print(f"📋 Column: {args.column}")
+    print(f"📁 Compiled Directory: {args.compiled_dir}")
+    print(f"🏢 Internal Prefixes: {args.internal_prefixes}")
     
-    # Comprehensive analysis for LLM context
-    print("🤖 COMPREHENSIVE TECHNICAL ANALYSIS:")
-    test_comprehensive_technical_analysis(compiled_sql_directory, presentation_table, target_column, internal_db_prefixes)
+    try:
+        tracer = DBTLineageTracer(args.compiled_dir, args.internal_prefixes)
+        
+        # Always show quick summary
+        print("\n" + "="*80)
+        print("🚀 QUICK LINEAGE SUMMARY:")
+        quick_result = quick_lineage_summary(args.compiled_dir, args.table, args.column, args.internal_prefixes)
+        
+        # Show detailed analysis if verbose flag is used
+        if args.verbose:
+            print("\n" + "="*80)
+            print("🤖 COMPREHENSIVE TECHNICAL ANALYSIS:")
+            technical_context = build_comprehensive_technical_context(tracer, args.table, args.column)
+            
+            if "error" in technical_context:
+                print(f"❌ Error: {technical_context['error']}")
+            else:
+                llm_ready_context = format_context_for_llm(technical_context)
+                print("="*80)
+                print(llm_ready_context)
+                print("\n✅ Detailed column lineage analysis complete!")
+        else:
+            print("\n💡 Use --verbose flag for detailed LLM-ready technical context")
+            
+    except Exception as e:
+        print(f"❌ Error during analysis: {e}")
+        import traceback
+        traceback.print_exc()

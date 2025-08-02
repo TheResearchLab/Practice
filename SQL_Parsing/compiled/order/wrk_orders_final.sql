@@ -19,5 +19,3 @@ INNER JOIN ph_dw_prod.staging.stg_customers c
 LEFT JOIN ph_dw_prod.staging.stg_products p 
     ON o.product_id = p.product_id
 WHERE o.order_status = 'completed'
-
-

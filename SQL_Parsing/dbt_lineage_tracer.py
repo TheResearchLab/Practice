@@ -1055,35 +1055,8 @@ def format_context_for_llm(technical_context):
                 for note in step["development_planning_notes"]:
                     llm_context.append(f"    - {note}")
     
-    # Use Case Specific Sections
-    llm_context.append("\n" + "=" * 80)
-    llm_context.append("USE CASE SPECIFIC GUIDANCE")
-    llm_context.append("=" * 80)
-    
-    # Documentation Generation Context
-    llm_context.append("\nFOR DOCUMENTATION GENERATION:")
-    llm_context.append("- Source column comments should be retrieved for: " + ", ".join(summary['ultimate_sources']))
-    llm_context.append(f"- Data grain changes occur at {summary['aggregation_points']} aggregation points")
-    llm_context.append(f"- Business logic complexity: {summary['complexity_assessment']}")
-    
-    # Issue Investigation Context  
-    llm_context.append("\nFOR ISSUE INVESTIGATION:")
-    high_risk_steps = [s for s in steps if "HIGH" in s.get("complexity_level", "")]
-    if high_risk_steps:
-        llm_context.append("- High-risk transformation points:")
-        for step in high_risk_steps:
-            if step.get("step_type") == "CTE_CONSOLIDATED":
-                step_desc = f"{step['table']}.CTE:{step['cte_name']} - {step.get('transformation_details', 'Complex CTE aggregation')}"
-            else:
-                step_desc = f"{step['table']}.{step.get('column', 'unknown')} - {step.get('transformation_details', 'Complex transformation')}"
-            llm_context.append(f"  • {step_desc}")
-    
-    # Development Planning Context
-    llm_context.append("\nFOR DEVELOPMENT PLANNING:")
-    llm_context.append(f"- Change impact scope: {summary['total_transformation_steps']} models affected")
-    llm_context.append(f"- Testing complexity: {summary['development_risk_level']} due to transformation complexity")
-    if summary['aggregation_points'] > 0:
-        llm_context.append(f"- Performance considerations: {summary['aggregation_points']} aggregation points require careful optimization")
+    # Use Case Specific Sections - REMOVED per user request
+    # The generic use case guidance was not needed for production use
     
     return "\n".join(llm_context)
 
@@ -1118,17 +1091,7 @@ def test_comprehensive_technical_analysis(compiled_sql_directory: str, presentat
         print("="*80)
         print(llm_ready_context)
         
-        # Also save to file for easy LLM input
-        output_file = f"lineage_context_{presentation_table}_{target_column}.txt"
-        with open(output_file, 'w', encoding='utf-8') as f:
-            f.write(llm_ready_context)
-        
-        print(f"\n💾 Context saved to: {output_file}")
-        print("📋 This context can be used for:")
-        print("   • Documentation generation (with source column comments)")
-        print("   • Issue investigation and root cause analysis")
-        print("   • Development planning and impact assessment")
-        print("   • Architecture review and optimization planning")
+        print("\n✅ Column lineage analysis complete!")
         
     except Exception as e:
         print(f"❌ Error during analysis: {e}")
@@ -1205,8 +1168,8 @@ if __name__ == "__main__":
     print("="*60)
     
     # Quick summary for development planning
-    #print("🚀 QUICK DEVELOPMENT PLANNING SUMMARY:")
-    #quick_result = quick_lineage_summary(compiled_sql_directory, presentation_table, target_column, internal_db_prefixes)
+    # print("🚀 QUICK DEVELOPMENT PLANNING SUMMARY:")
+    # quick_result = quick_lineage_summary(compiled_sql_directory, presentation_table, target_column, internal_db_prefixes)
     
     print("\n" + "="*100)
     

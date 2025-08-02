@@ -1,25 +1,25 @@
 🎯 ENHANCED COLUMN LINEAGE FLOW:
 ============================================================
 📦 MULTIPLE SOURCES:
-    📍 raw_ecommerce_db.public.orders.order_amount
     📍 raw_ecommerce_db.public.orders.order_id
+    📍 raw_ecommerce_db.public.orders.order_amount
       ↓
    [FLOWS TO]
       ↓
 📦 MULTIPLE SOURCES:
-    🔧 TABLE: stg_orders.order_amount
     🔧 TABLE: stg_orders.order_id
+    🔧 TABLE: stg_orders.order_amount
       ↓
    [FLOWS TO]
       ↓
 📦 MULTIPLE SOURCES:
-    🔧 TABLE: wrk_orders_final.order_amount
     🔧 TABLE: wrk_orders_final.order_id
+    🔧 TABLE: wrk_orders_final.order_amount
       ↓
    [FLOWS TO]
       ↓
 🔄 CTE 'customer_metrics' AGGREGATION STEP:
-    📊 Produces: customer_lifetime_value, total_orders
+    📊 Produces: total_orders, customer_lifetime_value
       ↓
    [FLOWS TO]
       ↓
@@ -64,9 +64,9 @@ STEP 1: TRANSFORMATION
 STEP 2: CTE AGGREGATION
   CTE Name: customer_metrics
   Table: ph_dw_prod.marts.customer_order_summary
-  Columns Produced: customer_lifetime_value, total_orders
+  Columns Produced: total_orders, customer_lifetime_value
   SQL File: compiled\order\customer_order_summary.sql
-  Transformation Details: CTE 'customer_metrics' aggregates 2 columns: customer_lifetime_value, total_orders
+  Transformation Details: CTE 'customer_metrics' aggregates 2 columns: total_orders, customer_lifetime_value
   Data Scope: Aggregation step - processes 2 columns
   Control Flow: GROUP BY aggregation within CTE
   Complexity Level: HIGH - Multiple column aggregation in CTE
@@ -79,34 +79,6 @@ STEP 2: CTE AGGREGATION
     - Schema changes require aggregation logic updates
     - Consider materialization for performance
     - Multiple column dependencies - coordinate changes carefully
-
-STEP 3: TRANSFORMATION
-  Table: wrk_orders_final
-  Column: order_amount
-  SQL File: compiled\order\wrk_orders_final.sql
-  Transformation Context: INTER-FILE (table-to-table)
-  SQL Expression: o.order_amount
-  Transformation Type: direct
-  Complexity Level: LOW - Direct column reference
-  Performance Impact: Minimal performance impact
-  Data Scope: Direct transformation from single source
-
-STEP 4: TRANSFORMATION
-  Table: stg_orders
-  Column: order_amount
-  SQL File: compiled\order\stg_orders.sql
-  Transformation Context: INTER-FILE (table-to-table)
-  SQL Expression: COALESCE(order_amount, 0) AS order_amount
-  Transformation Type: calculated
-  Complexity Level: MEDIUM - Calculated transformation
-  Performance Impact: Moderate computational overhead
-  Data Scope: Direct transformation from single source
-
-STEP 5: SOURCE TABLE
-  Table: raw_ecommerce_db.public.orders
-  Column: order_amount
-  Source Type: external_database
-  Business Impact: Source of truth for this data element
 
 STEP 3: TRANSFORMATION
   Table: wrk_orders_final
@@ -136,20 +108,30 @@ STEP 5: SOURCE TABLE
   Source Type: external_database
   Business Impact: Source of truth for this data element
 
-================================================================================
-USE CASE SPECIFIC GUIDANCE
-================================================================================
+STEP 3: TRANSFORMATION
+  Table: wrk_orders_final
+  Column: order_amount
+  SQL File: compiled\order\wrk_orders_final.sql
+  Transformation Context: INTER-FILE (table-to-table)
+  SQL Expression: o.order_amount
+  Transformation Type: direct
+  Complexity Level: LOW - Direct column reference
+  Performance Impact: Minimal performance impact
+  Data Scope: Direct transformation from single source
 
-FOR DOCUMENTATION GENERATION:
-- Source column comments should be retrieved for: raw_ecommerce_db.public.orders.order_id, raw_ecommerce_db.public.orders.order_amount
-- Data grain changes occur at 1 aggregation points
-- Business logic complexity: HIGH
+STEP 4: TRANSFORMATION
+  Table: stg_orders
+  Column: order_amount
+  SQL File: compiled\order\stg_orders.sql
+  Transformation Context: INTER-FILE (table-to-table)
+  SQL Expression: COALESCE(order_amount, 0) AS order_amount
+  Transformation Type: calculated
+  Complexity Level: MEDIUM - Calculated transformation
+  Performance Impact: Moderate computational overhead
+  Data Scope: Direct transformation from single source
 
-FOR ISSUE INVESTIGATION:
-- High-risk transformation points:
-  • ph_dw_prod.marts.customer_order_summary.CTE:customer_metrics - CTE 'customer_metrics' aggregates 2 columns: customer_lifetime_value, total_orders
-
-FOR DEVELOPMENT PLANNING:
-- Change impact scope: 6 models affected
-- Testing complexity: HIGH due to transformation complexity
-- Performance considerations: 1 aggregation points require careful optimization
+STEP 5: SOURCE TABLE
+  Table: raw_ecommerce_db.public.orders
+  Column: order_amount
+  Source Type: external_database
+  Business Impact: Source of truth for this data element

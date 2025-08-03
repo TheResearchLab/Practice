@@ -1,6 +1,6 @@
--- FILE: stg_dummy_processed.sql (Staging Layer)
+-- FILE: wrk_dummy_processed.sql (Staging Layer)
 -- Simplified staging with CASE statement
--- Test with: table="stg_dummy_processed", column="dummy_ver_name"
+-- Test with: table="wrk_dummy_processed", column="dummy_ver_name"
 
 SELECT 
     record_id,

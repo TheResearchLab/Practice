@@ -9,7 +9,7 @@ WITH dummy_metrics AS (
         dummy_level_cd,
         dummy_var_name,
         dummy_coef
-    FROM ph_dw_prod.staging.stg_dummy_processed
+    FROM ph_dw_prod.staging.wrk_dummy_processed
 )
 SELECT
     COALESCE(dm.dummy_ver_name, '') || '~' || COALESCE(dm.dummy_pop_name, '') || '~' || COALESCE(dm.dummy_level_cd, '') AS dummy_id,

@@ -81,6 +81,96 @@
         "description": "Whether product is currently available for sale",
         "data_type": "BOOLEAN"
       }
+    },
+    "dummy_data_lake.raw.dummy_records_v1": {
+      "record_id": {
+        "description": "Unique identifier for each dummy data record",
+        "data_type": "VARCHAR(50)"
+      },
+      "source_system_id": {
+        "description": "Identifier of the source system that generated this record",
+        "data_type": "VARCHAR(20)"
+      },
+      "version_flag": {
+        "description": "Version flag indicating the algorithm version used",
+        "data_type": "VARCHAR(20)"
+      },
+      "region": {
+        "description": "Geographic region where this data applies",
+        "data_type": "VARCHAR(10)"
+      },
+      "population_id": {
+        "description": "Foreign key to population segment this record belongs to",
+        "data_type": "INTEGER"
+      },
+      "priority_score": {
+        "description": "Calculated priority score for this record (0-100)",
+        "data_type": "NUMBER(5,2)"
+      },
+      "variable_identifier": {
+        "description": "Name/code of the variable being measured",
+        "data_type": "VARCHAR(100)"
+      },
+      "coefficient_raw": {
+        "description": "Raw coefficient value before type conversion",
+        "data_type": "VARCHAR(20)"
+      },
+      "validation_status": {
+        "description": "Validation status of the record (PASS/FAIL)",
+        "data_type": "VARCHAR(10)"
+      },
+      "processed_timestamp": {
+        "description": "Timestamp when this record was processed",
+        "data_type": "TIMESTAMP"
+      }
+    },
+    "dummy_populations_db.segments.population_master": {
+      "population_id": {
+        "description": "Unique identifier for population segment",
+        "data_type": "INTEGER"
+      },
+      "population_name": {
+        "description": "Descriptive name of the population segment",
+        "data_type": "VARCHAR(100)"
+      },
+      "tier_level": {
+        "description": "Tier classification (T1=Premium, T2=Standard, T3=Basic)",
+        "data_type": "VARCHAR(5)"
+      },
+      "active_flag": {
+        "description": "Whether this population segment is currently active",
+        "data_type": "INTEGER"
+      },
+      "created_date": {
+        "description": "Date when this population segment was created",
+        "data_type": "DATE"
+      }
+    },
+    "external_dims_db.reference.dummy_dimension": {
+      "dim_id": {
+        "description": "Unique identifier for dimension record",
+        "data_type": "INTEGER"
+      },
+      "version_name": {
+        "description": "Version name used for joins with dummy data",
+        "data_type": "VARCHAR(100)"
+      },
+      "status_code": {
+        "description": "Status code (A=Active, I=Inactive, D=Deleted)",
+        "data_type": "CHAR(1)"
+      },
+      "priority_level": {
+        "description": "Priority level for this dimension entry",
+        "data_type": "INTEGER"
+      },
+      "created_date": {
+        "description": "Date when dimension record was created",
+        "data_type": "DATE"
+      },
+      "updated_date": {
+        "description": "Date when dimension record was last updated",
+        "data_type": "DATE"
+      }
     }
   }
 }

@@ -151,7 +151,7 @@ def extract_snowflake_columns(sql_query):
 def trace_column_lineage(sql_query, target_column_name):
     """
     Traces a specific column through all transformations and builds LLM-ready context.
-    FIXED: Now properly resolves CTEs and shows intra-file vs inter-file transformations
+    FIXED: Now properly handles both 'column' and 'columns' keys in CTE transformations
     """
     
     # Parse and build CTE registry
@@ -321,7 +321,7 @@ def trace_column_lineage(sql_query, target_column_name):
                         # Add consolidated CTE transformation
                         cte_transformations.append({
                             "cte_name": cte_name,
-                            "columns": columns,  # Multiple columns
+                            "columns": columns,  # Multiple columns - use 'columns' key
                             "transformation_type": "consolidated_cte",
                             "details": f"CTE processes {len(columns)} columns: {', '.join(columns)}",
                             "column_details": cte_column_details
@@ -351,12 +351,24 @@ def trace_column_lineage(sql_query, target_column_name):
                             "level": "external_table"
                         })
     
-    # Show CTE transformations summary
+    # Show CTE transformations summary with safe access to column/columns
     if cte_transformations:
         llm_context_parts.append(f"\nINTRA-FILE CTE TRANSFORMATIONS:")
         for cte_info in cte_transformations:
-            llm_context_parts.append(f"  CTE '{cte_info['cte_name']}' transforms {cte_info['column']}")
-            llm_context_parts.append(f"    └─ Type: {cte_info['transformation_type']}")
+            # FIXED: Handle both 'column' and 'columns' keys safely
+            if 'column' in cte_info:
+                column_info = cte_info['column']
+            elif 'columns' in cte_info:
+                columns_list = cte_info['columns']
+                if isinstance(columns_list, list):
+                    column_info = ', '.join(columns_list)
+                else:
+                    column_info = str(columns_list)
+            else:
+                column_info = 'unknown'
+            
+            llm_context_parts.append(f"  CTE '{cte_info['cte_name']}' transforms {column_info}")
+            llm_context_parts.append(f"    └─ Type: {cte_info.get('transformation_type', 'unknown')}")
     
     # Show CTE definitions if relevant
     if cte_registry:

@@ -6,21 +6,53 @@ import sqlglot
 from sqlglot import exp
 
 class DBTLineageTracer:
-    def __init__(self, compiled_sql_directory: str, internal_db_prefixes: List[str] = None):
+    def __init__(self, compiled_sql_directory: str, internal_db_prefixes: List[str] = None, source_definitions_file: Optional[str] = None):
         """
         Initialize the DBT lineage tracer with compiled SQL directory
         
         Args:
             compiled_sql_directory: Path to dbt compiled SQL files
             internal_db_prefixes: List of database prefixes that indicate internal tables (e.g., ['ph_'])
+            source_definitions_file: Path to JSON file containing source column definitions
         """
         self.sql_dir = Path(compiled_sql_directory)
         self.internal_db_prefixes = internal_db_prefixes or ['ph_']
         self.table_to_file_map = {}  # "table_name" -> Path object
         self.file_cache = {}         # Cache parsed SQL content
+        self.source_definitions = {}  # Source column definitions
+        
+        # Load source definitions if provided
+        if source_definitions_file:
+            self.load_source_definitions(source_definitions_file)
         
         # Build the file mapping on initialization
         self.build_file_mapping()
+    
+    def load_source_definitions(self, source_definitions_file: str) -> None:
+        """
+        Load source column definitions from JSON file
+        """
+        try:
+            with open(source_definitions_file, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+                self.source_definitions = data.get('source_definitions', {})
+                print(f"📚 Loaded source definitions for {len(self.source_definitions)} tables")
+        except FileNotFoundError:
+            print(f"⚠️  Source definitions file not found: {source_definitions_file}")
+        except json.JSONDecodeError as e:
+            print(f"⚠️  Error parsing source definitions JSON: {e}")
+        except Exception as e:
+            print(f"⚠️  Error loading source definitions: {e}")
+    
+    def get_source_definition(self, table_name: str, column_name: str) -> Optional[Dict]:
+        """
+        Get source definition for a specific table.column
+        """
+        if table_name in self.source_definitions:
+            table_defs = self.source_definitions[table_name]
+            if column_name in table_defs:
+                return table_defs[column_name]
+        return None
         
     def build_file_mapping(self) -> Dict[str, Path]:
         """
@@ -881,7 +913,7 @@ def build_visual_column_dag(technical_context):
     return "\n".join(dag_lines)
 
 
-def build_enhanced_visual_dag(technical_context):
+def build_enhanced_visual_dag(technical_context, include_source_definitions=False, tracer=None):
     """
     Build an enhanced visual DAG with proper CTE consolidation and improved clarity
     """
@@ -919,14 +951,28 @@ def build_enhanced_visual_dag(technical_context):
                 # These are transformations that happen BEFORE the CTE (higher step numbers)
                 all_intermediate_steps.append(step)
         
-        # Show ultimate sources with clearer labeling
+        # Show ultimate sources with clearer labeling and optional definitions
         if len(all_sources) > 1:
             dag_lines.append("📦 ULTIMATE DATA SOURCES:")
             for source in all_sources:
                 dag_lines.append(f"    📍 {source['table']}.{source['column']} ({source['source_reason']})")
+                
+                # Add source definitions if requested and available
+                if include_source_definitions and tracer:
+                    source_def = tracer.get_source_definition(source['table'], source['column'])
+                    if source_def:
+                        dag_lines.append(f"        └─ Type: {source_def.get('data_type', 'Unknown')}")
+                        dag_lines.append(f"        └─ Description: {source_def.get('description', 'No description available')}")
         else:
             source = all_sources[0]
             dag_lines.append(f"📍 ULTIMATE SOURCE: {source['table']}.{source['column']} ({source['source_reason']})")
+            
+            # Add source definitions if requested and available
+            if include_source_definitions and tracer:
+                source_def = tracer.get_source_definition(source['table'], source['column'])
+                if source_def:
+                    dag_lines.append(f"    └─ Type: {source_def.get('data_type', 'Unknown')}")
+                    dag_lines.append(f"    └─ Description: {source_def.get('description', 'No description available')}")
         
         # Group intermediate transformations by table and sort by data flow order
         if all_intermediate_steps:
@@ -1104,7 +1150,7 @@ def build_enhanced_visual_dag(technical_context):
     return "\n".join(dag_lines)
 
 
-def format_context_for_llm(technical_context):
+def format_context_for_llm(technical_context, include_source_definitions=False, tracer=None):
     """
     Format the technical context in an LLM-friendly way for different use cases
     """
@@ -1118,7 +1164,7 @@ def format_context_for_llm(technical_context):
     llm_context = []
     
     # Visual DAG at the top
-    visual_dag = build_enhanced_visual_dag(technical_context)
+    visual_dag = build_enhanced_visual_dag(technical_context, include_source_definitions, tracer)
     llm_context.append(visual_dag)
     llm_context.append("")
     
@@ -1134,10 +1180,20 @@ def format_context_for_llm(technical_context):
     llm_context.append(f"AGGREGATION POINTS: {summary['aggregation_points']}")
     llm_context.append("")
     
-    # Ultimate Sources
+    # Ultimate Sources with optional definitions
     llm_context.append("ULTIMATE DATA SOURCES:")
     for source in summary['ultimate_sources']:
         llm_context.append(f"  • {source}")
+        
+        # Add source definitions if requested and available
+        if include_source_definitions and tracer:
+            table_name = source.split('.')[0] + '.' + source.split('.')[1] + '.' + source.split('.')[2]
+            column_name = source.split('.')[-1]
+            source_def = tracer.get_source_definition(table_name, column_name)
+            if source_def:
+                llm_context.append(f"    └─ Type: {source_def.get('data_type', 'Unknown')}")
+                llm_context.append(f"    └─ Description: {source_def.get('description', 'No description available')}")
+    
     llm_context.append("")
     
     # Detailed Transformation Chain
@@ -1248,7 +1304,7 @@ def format_context_for_llm(technical_context):
     return "\n".join(llm_context)
 
 
-def test_comprehensive_technical_analysis(compiled_sql_directory: str, presentation_table: str, target_column: str, internal_db_prefixes: List[str] = None):
+def test_comprehensive_technical_analysis(compiled_sql_directory: str, presentation_table: str, target_column: str, internal_db_prefixes: List[str] = None, source_definitions_file: Optional[str] = None):
     """
     Test comprehensive technical analysis for LLM context generation
     """
@@ -1257,7 +1313,7 @@ def test_comprehensive_technical_analysis(compiled_sql_directory: str, presentat
     print("="*80)
     
     try:
-        tracer = DBTLineageTracer(compiled_sql_directory, internal_db_prefixes)
+        tracer = DBTLineageTracer(compiled_sql_directory, internal_db_prefixes, source_definitions_file)
         
         print(f"🎯 Analyzing column lineage:")
         print(f"   Table: {presentation_table}")
@@ -1272,7 +1328,8 @@ def test_comprehensive_technical_analysis(compiled_sql_directory: str, presentat
             return
         
         # Format for LLM consumption
-        llm_ready_context = format_context_for_llm(technical_context)
+        include_source_defs = bool(source_definitions_file)
+        llm_ready_context = format_context_for_llm(technical_context, include_source_defs, tracer)
         
         print("\n🤖 LLM-READY TECHNICAL CONTEXT:")
         print("="*80)
@@ -1286,12 +1343,12 @@ def test_comprehensive_technical_analysis(compiled_sql_directory: str, presentat
         traceback.print_exc()
 
 
-def quick_lineage_summary(compiled_sql_directory: str, presentation_table: str, target_column: str, internal_db_prefixes: List[str] = None):
+def quick_lineage_summary(compiled_sql_directory: str, presentation_table: str, target_column: str, internal_db_prefixes: List[str] = None, source_definitions_file: Optional[str] = None):
     """
     Quick summary for development planning
     """
     try:
-        tracer = DBTLineageTracer(compiled_sql_directory, internal_db_prefixes)
+        tracer = DBTLineageTracer(compiled_sql_directory, internal_db_prefixes, source_definitions_file)
         technical_context = build_comprehensive_technical_context(tracer, presentation_table, target_column)
         
         if "error" in technical_context:
@@ -1306,11 +1363,11 @@ def quick_lineage_summary(compiled_sql_directory: str, presentation_table: str, 
         print(f"Sources: {', '.join(summary['ultimate_sources'])}")
         print(f"Aggregations: {summary['aggregation_points']} | High complexity steps: {summary['high_complexity_steps']}")
         
-        return technical_context
+        return technical_context, tracer  # Return both context and tracer
         
     except Exception as e:
         print(f"❌ Error: {e}")
-        return None
+        return None, None
 
 
 # Example usage
@@ -1326,6 +1383,8 @@ if __name__ == "__main__":
                         help='Database prefixes for internal tables (default: ph_)')
     parser.add_argument('--verbose', '-v', action='store_true', 
                         help='Show detailed LLM-ready technical context')
+    parser.add_argument('--source-definitions', '-s', type=str, 
+                        help='Path to JSON file containing source column definitions')
     
     args = parser.parse_args()
     
@@ -1335,14 +1394,16 @@ if __name__ == "__main__":
     print(f"📋 Column: {args.column}")
     print(f"📁 Compiled Directory: {args.compiled_dir}")
     print(f"🏢 Internal Prefixes: {args.internal_prefixes}")
+    if args.source_definitions:
+        print(f"📚 Source Definitions: {args.source_definitions}")
     
     try:
-        tracer = DBTLineageTracer(args.compiled_dir, args.internal_prefixes)
+        tracer = DBTLineageTracer(args.compiled_dir, args.internal_prefixes, args.source_definitions)
         
         # Always show quick summary
         print("\n" + "="*80)
         print("🚀 QUICK LINEAGE SUMMARY:")
-        quick_result = quick_lineage_summary(args.compiled_dir, args.table, args.column, args.internal_prefixes)
+        quick_result, tracer_instance = quick_lineage_summary(args.compiled_dir, args.table, args.column, args.internal_prefixes, args.source_definitions)
         
         # Show detailed analysis if verbose flag is used
         if args.verbose:
@@ -1351,7 +1412,8 @@ if __name__ == "__main__":
             
             # Use the same technical context from quick_result to avoid duplication
             if quick_result and "error" not in quick_result:
-                llm_ready_context = format_context_for_llm(quick_result)
+                include_source_defs = bool(args.source_definitions)
+                llm_ready_context = format_context_for_llm(quick_result, include_source_defs, tracer_instance)
                 print("="*80)
                 print(llm_ready_context)
                 print("\n✅ Detailed column lineage analysis complete!")
@@ -1359,6 +1421,8 @@ if __name__ == "__main__":
                 print("❌ Error: Could not generate comprehensive analysis")
         else:
             print("\n💡 Use --verbose flag for detailed LLM-ready technical context")
+            if args.source_definitions:
+                print("💡 Use --source-definitions to include source column definitions")
             
     except Exception as e:
         print(f"❌ Error during analysis: {e}")

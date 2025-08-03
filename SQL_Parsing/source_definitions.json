@@ -1,0 +1,86 @@
+{
+  "source_definitions": {
+    "raw_ecommerce_db.public.orders": {
+      "order_id": {
+        "description": "Unique identifier for each order transaction",
+        "data_type": "INTEGER"
+      },
+      "customer_id": {
+        "description": "Foreign key reference to customer who placed the order",
+        "data_type": "INTEGER"
+      },
+      "product_id": {
+        "description": "Foreign key reference to the product being ordered",
+        "data_type": "INTEGER"
+      },
+      "order_date": {
+        "description": "Date and time when the order was placed by customer",
+        "data_type": "TIMESTAMP"
+      },
+      "order_amount": {
+        "description": "Total monetary value of the order in USD",
+        "data_type": "DECIMAL(10,2)"
+      },
+      "order_status": {
+        "description": "Current status of the order in fulfillment process",
+        "data_type": "VARCHAR(20)"
+      },
+      "created_at": {
+        "description": "System timestamp when record was inserted into database",
+        "data_type": "TIMESTAMP"
+      }
+    },
+    "raw_crm_system.customers.customer_master": {
+      "customer_id": {
+        "description": "Unique identifier for each customer account",
+        "data_type": "INTEGER"
+      },
+      "first_name": {
+        "description": "Customer's legal first name",
+        "data_type": "VARCHAR(50)"
+      },
+      "last_name": {
+        "description": "Customer's legal last name",
+        "data_type": "VARCHAR(50)"
+      },
+      "email": {
+        "description": "Primary email address for customer communications",
+        "data_type": "VARCHAR(255)"
+      },
+      "signup_date": {
+        "description": "Date when customer first created their account",
+        "data_type": "DATE"
+      },
+      "customer_status": {
+        "description": "Current status of customer account (A=Active, I=Inactive)",
+        "data_type": "CHAR(1)"
+      }
+    },
+    "external_catalog_db.products.product_info": {
+      "product_id": {
+        "description": "Unique identifier for each product in catalog",
+        "data_type": "INTEGER"
+      },
+      "product_name": {
+        "description": "Display name of the product",
+        "data_type": "VARCHAR(200)"
+      },
+      "category": {
+        "description": "Product category classification",
+        "data_type": "VARCHAR(50)"
+      },
+      "price": {
+        "description": "Current selling price of the product",
+        "data_type": "DECIMAL(10,2)"
+      },
+      "created_date": {
+        "description": "Date when product was added to catalog",
+        "data_type": "DATE"
+      },
+      "is_active": {
+        "description": "Whether product is currently available for sale",
+        "data_type": "BOOLEAN"
+      }
+    }
+  }
+}

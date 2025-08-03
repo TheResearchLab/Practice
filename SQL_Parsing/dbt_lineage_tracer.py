@@ -103,7 +103,7 @@ class DBTLineageTracer:
             print(f"Error reading file {file_path}: {e}")
             return None
     
-    def trace_column_lineage_across_files(self, presentation_table: str, target_column: str, visited: Optional[Set[str]] = None) -> Dict:
+    def trace_column_lineage_across_files(self, presentation_table: str, target_column: str, visited: Optional[Set[str]] = None, show_cte_messages: bool = True) -> Dict:
         """
         Main entry point: Trace a specific column from presentation layer back to all source tables
         
@@ -111,6 +111,7 @@ class DBTLineageTracer:
             presentation_table: Name of the presentation table
             target_column: Name of the column to trace
             visited: Set of tables already visited (to prevent circular references)
+            show_cte_messages: Whether to show CTE transformation messages
             
         Returns:
             Complete lineage information for the target column
@@ -144,9 +145,7 @@ class DBTLineageTracer:
             # Import your existing trace function - check if this import works
             try:
                 from column_lineage import trace_column_lineage
-                print(f"   ✅ Successfully imported column_lineage functions")
             except ImportError:
-                print(f"   ⚠️  Could not import from column_lineage, trying paste module")
                 from paste import trace_column_lineage
             
             # Trace the column within this single file
@@ -157,6 +156,15 @@ class DBTLineageTracer:
                 
             dependencies = single_file_trace.get('next_columns_to_search', [])
             cte_transformations = single_file_trace.get('cte_transformations', [])
+            
+            # PRESERVE the original CTE transformations from this file's analysis
+            original_cte_transformations = cte_transformations.copy()  # Make a copy to prevent contamination
+            
+            # FIXED: Show CTE message immediately after analysis, before dependency processing
+            if original_cte_transformations and show_cte_messages:
+                print(f"🔄 Found {len(original_cte_transformations)} intra-file CTE transformations in {presentation_table}")
+                for cte_info in original_cte_transformations:
+                    print(f"   └─ CTE '{cte_info['cte_name']}' transforms {cte_info['column']}")
             
             # Initialize upstream_lineage before any processing
             upstream_lineage = []
@@ -181,15 +189,51 @@ class DBTLineageTracer:
                 for table_name, table_deps in tables_with_multiple_deps.items():
                     print(f"   📋 Table '{table_name}' has {len(table_deps)} dependencies: {[dep['column'] for dep in table_deps]}")
                     
-                    # Trace each dependency to see if they come from the same CTE
+                    # QUICK CTE CHECK: Only analyze the target table file directly, no recursion
+                    dep_table_name = self.extract_table_name_from_full_ref(table_name)
+                    
+                    # Load the SQL file and do a direct single-file analysis (no recursion)
+                    sql_content = self.load_sql_file(dep_table_name)
+                    has_ctes = False
+                    cte_name = None
+                    
+                    if sql_content:
+                        try:
+                            # Import trace function
+                            try:
+                                from column_lineage import trace_column_lineage
+                            except ImportError:
+                                from paste import trace_column_lineage
+                            
+                            # Just analyze the first dependency column to check for CTEs
+                            sample_dep = table_deps[0]
+                            single_file_result = trace_column_lineage(sql_content, sample_dep['column'])
+                            
+                            if "error" not in single_file_result:
+                                cte_transformations = single_file_result.get('cte_transformations', [])
+                                if cte_transformations:
+                                    has_ctes = True
+                                    cte_name = cte_transformations[0].get("cte_name")
+                        except Exception as e:
+                            print(f"   ⚠️  Error checking for CTEs in {dep_table_name}: {e}")
+                    
+                    if has_ctes and cte_name:
+                        # IMMEDIATELY show consolidation message here, in the right context
+                        columns = [dep['column'] for dep in table_deps]
+                        print(f"   🎯 CONSOLIDATED CTE DETECTED in '{dep_table_name}':")
+                        print(f"      └─ CTE '{cte_name}' processes {len(columns)} columns: {', '.join(columns)}")
+                        print(f"      └─ Replacing {len(columns)} separate dependency traces with 1 consolidated trace")
+                    
+                    # Now trace each dependency to get full CTE information for consolidation
                     cte_info_by_dep = {}
                     for dep in table_deps:
                         dep_table = dep['table']
                         dep_column = dep['column']
                         dep_table_name = self.extract_table_name_from_full_ref(dep_table)
                         
-                        # Trace this dependency to get its CTE information
-                        dep_trace = self.trace_column_lineage_across_files(dep_table_name, dep_column, visited.copy())
+                        # Trace this dependency to get its CTE information 
+                        # Note: show_cte_messages=True so we see the individual CTE messages in correct context
+                        dep_trace = self.trace_column_lineage_across_files(dep_table_name, dep_column, visited.copy(), show_cte_messages=True)
                         
                         if "error" not in dep_trace:
                             dep_cte_transformations = dep_trace.get("current_file_analysis", {}).get("cte_transformations", [])
@@ -214,17 +258,11 @@ class DBTLineageTracer:
                                     "cte_transform": cte_transform
                                 })
                     
-                    # Process consolidated CTEs
+                    # Process consolidated CTEs - now just capture the data, don't print again
                     for cte_name, cte_group in cte_groups.items():
                         if len(cte_group) > 1:
                             # Found multiple dependencies from same CTE - consolidate!
                             columns = [item["cte_transform"]["column"] for item in cte_group]
-                            print(f"   🔄 Consolidated CTE '{cte_name}' processes {len(columns)} columns: {', '.join(columns)}")
-                            print(f"   ⚡ Processing consolidated CTE instead of {len(columns)} separate dependencies")
-                            
-                            # Get external dependencies from the CTE (should be same for all)
-                            sample_trace = cte_group[0]["dep_info"]["trace"]
-                            cte_external_deps = sample_trace.get("upstream_lineage", [])
                             
                             # Add consolidated CTE entry to upstream lineage
                             upstream_lineage.append({
@@ -302,10 +340,6 @@ class DBTLineageTracer:
                             # Store the transformation details in the consolidated entry
                             consolidated_entry["transformation_details"] = transformation_details
                             
-                            print(f"   📊 Captured {len(transformation_details)} CTE transformations:")
-                            for td in transformation_details:
-                                print(f"      • {td['column']}: {td['sql_expression'][:80]}...")
-                            
                             # Remove the individual dependencies since they're now consolidated
                             for item in cte_group:
                                 dep_to_remove = item["dep_info"]["dep"]
@@ -379,7 +413,8 @@ class DBTLineageTracer:
                             upstream_trace = self.trace_column_lineage_across_files(
                                 dep_table_name, 
                                 dep_column, 
-                                visited.copy()
+                                visited.copy(),
+                                show_cte_messages=False  # Don't show CTE messages for regular dependency tracing
                             )
                             
                             upstream_lineage.append({
@@ -389,21 +424,20 @@ class DBTLineageTracer:
                         else:
                             print(f"   🔄 Already visited: {dep_table}.{dep_column}")
             
-            # Show summary of what we found
-            if cte_transformations:
-                print(f"🔄 Found {len(cte_transformations)} intra-file CTE transformations")
-                for cte_info in cte_transformations:
-                    print(f"   └─ CTE '{cte_info['cte_name']}' transforms {cte_info['column']}")
+            # REMOVED: Old CTE message that was appearing at wrong time
+            # The CTE message now appears immediately after single-file analysis
             
-            return {
+            final_result = {
                 "table": presentation_table,
                 "column": target_column,
                 "type": "intermediate",
                 "current_file_analysis": single_file_trace,
-                "cte_transformations": cte_transformations,
+                "cte_transformations": original_cte_transformations,  # Use the preserved original CTEs
                 "upstream_lineage": upstream_lineage,
                 "sql_file": str(self.table_to_file_map.get(presentation_table, "Unknown"))
             }
+            
+            return final_result
             
         except Exception as e:
             return {"error": f"Error tracing column in {presentation_table}: {str(e)}"}
@@ -529,9 +563,24 @@ def build_comprehensive_technical_context(tracer, presentation_table: str, targe
         
         # Extract detailed analysis from current file
         file_analysis = result.get("current_file_analysis", {})
-        cte_transformations = result.get("cte_transformations", [])
         
-        # Add CTE transformation information
+        # FIXED: Only get CTE transformations if this is the actual table that contains them
+        # Don't inherit CTE info from consolidated dependencies
+        if result.get("type") == "intermediate" and "current_file_analysis" in result:
+            # This table was actually analyzed - check if IT has CTEs
+            cte_transformations = result.get("cte_transformations", [])
+        else:
+            # This is a source, reference, or consolidated entry - no individual CTEs
+            cte_transformations = []
+        
+        # DEBUGGING: Check if we're incorrectly attributing CTEs to tables that don't have them
+        if cte_transformations and result['table'] == 'fct_customer_orders':
+            print(f"DEBUG: Found CTEs in {result['table']} - this might be incorrect!")
+            print(f"DEBUG: CTEs found: {[cte['cte_name'] for cte in cte_transformations]}")
+            print(f"DEBUG: Result type: {result.get('type')}")
+            print(f"DEBUG: Has current_file_analysis: {'current_file_analysis' in result}")
+        
+        # Add CTE transformation information ONLY if this table actually has CTEs
         if cte_transformations:
             step_context["cte_transformations"] = cte_transformations
             step_context["has_cte_logic"] = True
@@ -632,8 +681,16 @@ def build_comprehensive_technical_context(tracer, presentation_table: str, targe
         """Recursively walk lineage and build context for each step - FIXED to properly handle consolidation"""
         if processed_items is None:
             processed_items = set()
-            
-        current_path = path + [f"{result['table']}.{result['column']}"]
+        
+        # Handle cases where result might not have expected keys
+        if not isinstance(result, dict):
+            print(f"Warning: Expected dict but got {type(result)}: {result}")
+            return []
+        
+        table_name = result.get('table', 'unknown_table')
+        column_name = result.get('column', 'unknown_column')
+        
+        current_path = path + [f"{table_name}.{column_name}"]
         
         step_context = analyze_transformation_step(result, step_num, len(current_path))
         step_context["lineage_path"] = " → ".join(current_path)
@@ -649,8 +706,9 @@ def build_comprehensive_technical_context(tracer, presentation_table: str, targe
             for upstream in result["upstream_lineage"]:
                 if upstream.get("dependency_type") == "CTE_CONSOLIDATED":
                     consolidated_cte_found = True
-                    cte_name = upstream.get("cte_name")
-                    cte_key = f"{upstream.get('table')}.{cte_name}"
+                    cte_name = upstream.get("cte_name", "unknown_cte")
+                    cte_table = upstream.get("table", "unknown_table")
+                    cte_key = f"{cte_table}.{cte_name}"
                     
                     # Only process each consolidated CTE once
                     if cte_key not in processed_items:
@@ -663,7 +721,7 @@ def build_comprehensive_technical_context(tracer, presentation_table: str, targe
                         consolidated_step = {
                             "step": next_step_num,
                             "step_type": "CTE_CONSOLIDATED",
-                            "table": upstream.get("table"),
+                            "table": cte_table,
                             "cte_name": cte_name,
                             "columns": columns,
                             "transformation_details": transformation_details,
@@ -686,20 +744,28 @@ def build_comprehensive_technical_context(tracer, presentation_table: str, targe
                         for cte_upstream in cte_upstream_lineage:
                             if "upstream_trace" in cte_upstream:
                                 upstream_trace = cte_upstream["upstream_trace"]
-                                source_key = f"{upstream_trace.get('table', 'unknown')}.{upstream_trace.get('column', 'unknown')}"
+                                # Safe access with defaults
+                                upstream_table = upstream_trace.get('table', 'unknown_table')
+                                upstream_column = upstream_trace.get('column', 'unknown_column')
+                                source_key = f"{upstream_table}.{upstream_column}"
                                 if source_key not in unique_upstream_sources:
                                     unique_upstream_sources[source_key] = cte_upstream
                         
                         # Process each unique upstream source
                         for source_key, cte_upstream in unique_upstream_sources.items():
-                            upstream_contexts = walk_lineage_for_context(
-                                cte_upstream["upstream_trace"], 
-                                next_step_num, 
-                                current_path + [f"CTE:{cte_name}"],
-                                processed_items
-                            )
-                            contexts.extend(upstream_contexts)
-                            next_step_num += len(upstream_contexts)
+                            try:
+                                upstream_contexts = walk_lineage_for_context(
+                                    cte_upstream["upstream_trace"], 
+                                    next_step_num, 
+                                    current_path + [f"CTE:{cte_name}"],
+                                    processed_items
+                                )
+                                contexts.extend(upstream_contexts)
+                                next_step_num += len(upstream_contexts)
+                            except Exception as e:
+                                print(f"Error processing upstream source {source_key}: {e}")
+                                # Continue processing other sources
+                                continue
                     
                     break  # Stop after processing the first (and should be only) consolidated CTE
             
@@ -708,18 +774,26 @@ def build_comprehensive_technical_context(tracer, presentation_table: str, targe
                 for upstream in result["upstream_lineage"]:
                     if "upstream_trace" in upstream and upstream.get("dependency_type") != "CTE_CONSOLIDATED":
                         upstream_trace = upstream["upstream_trace"]
-                        trace_key = f"{upstream_trace.get('table', 'unknown')}.{upstream_trace.get('column', 'unknown')}"
+                        # Safe access with defaults
+                        upstream_table = upstream_trace.get('table', 'unknown_table')
+                        upstream_column = upstream_trace.get('column', 'unknown_column')
+                        trace_key = f"{upstream_table}.{upstream_column}"
                         
                         if trace_key not in processed_items:
                             processed_items.add(trace_key)
-                            upstream_contexts = walk_lineage_for_context(
-                                upstream_trace, 
-                                next_step_num, 
-                                current_path,
-                                processed_items
-                            )
-                            contexts.extend(upstream_contexts)
-                            next_step_num += len(upstream_contexts)
+                            try:
+                                upstream_contexts = walk_lineage_for_context(
+                                    upstream_trace, 
+                                    next_step_num, 
+                                    current_path,
+                                    processed_items
+                                )
+                                contexts.extend(upstream_contexts)
+                                next_step_num += len(upstream_contexts)
+                            except Exception as e:
+                                print(f"Error processing upstream trace {trace_key}: {e}")
+                                # Continue processing other dependencies
+                                continue
         
         return contexts
     
@@ -809,7 +883,7 @@ def build_visual_column_dag(technical_context):
 
 def build_enhanced_visual_dag(technical_context):
     """
-    Build an enhanced visual DAG with proper CTE consolidation
+    Build an enhanced visual DAG with proper CTE consolidation and improved clarity
     """
     if "error" in technical_context:
         return "Error building enhanced DAG"
@@ -831,6 +905,7 @@ def build_enhanced_visual_dag(technical_context):
         # Build consolidated flow
         cte_name = consolidated_cte["cte_name"]
         columns = consolidated_cte["columns"]
+        cte_table_name = consolidated_cte["table"]
         
         # Collect all sources that feed into this CTE
         all_sources = []
@@ -844,31 +919,39 @@ def build_enhanced_visual_dag(technical_context):
                 # These are transformations that happen BEFORE the CTE (higher step numbers)
                 all_intermediate_steps.append(step)
         
-        # Show ultimate sources
+        # Show ultimate sources with clearer labeling
         if len(all_sources) > 1:
-            dag_lines.append("📦 MULTIPLE SOURCES:")
+            dag_lines.append("📦 ULTIMATE DATA SOURCES:")
             for source in all_sources:
-                dag_lines.append(f"    📍 {source['table']}.{source['column']}")
+                dag_lines.append(f"    📍 {source['table']}.{source['column']} ({source['source_reason']})")
         else:
             source = all_sources[0]
-            dag_lines.append(f"📍 SOURCE: {source['table']}.{source['column']} ({source['source_reason']})")
+            dag_lines.append(f"📍 ULTIMATE SOURCE: {source['table']}.{source['column']} ({source['source_reason']})")
         
-        # Group intermediate transformations by table
+        # Group intermediate transformations by table and sort by data flow order
         if all_intermediate_steps:
             dag_lines.append("      ↓")
-            dag_lines.append("   [FLOWS TO]")
+            dag_lines.append("   [DATA TRANSFORMATION LAYERS]")
             dag_lines.append("      ↓")
             
-            # Group by table name to show consolidated transformations
+            # Sort intermediate steps by their step number (higher step = earlier in flow)
+            # Then group by table to show consolidated transformations
+            sorted_intermediate = sorted(all_intermediate_steps, key=lambda x: x.get("step", 0), reverse=True)
+            
+            # Group by table while maintaining order
+            table_order = []
             tables = {}
-            for step in all_intermediate_steps:
+            for step in sorted_intermediate:
                 table = step['table']
                 if table not in tables:
                     tables[table] = []
+                    table_order.append(table)
                 tables[table].append(step)
             
-            # Show each table's transformations
-            for table_name, table_steps in tables.items():
+            # Show each table's transformations in the correct order
+            for i, table_name in enumerate(table_order):
+                table_steps = tables[table_name]
+                
                 if len(table_steps) > 1:
                     dag_lines.append(f"📦 MULTIPLE TRANSFORMATIONS IN {table_name}:")
                     for step in table_steps:
@@ -886,7 +969,13 @@ def build_enhanced_visual_dag(technical_context):
                     transformation_type = step.get("transformation_type", "unknown")
                     complexity = step.get("complexity_level", "").split(" - ")[0] if " - " in step.get("complexity_level", "") else ""
                     emoji = "🔧" if complexity == "HIGH" else ("⚙️" if complexity == "MEDIUM" else "📝")
-                    dag_lines.append(f"{emoji} TABLE: {step['table']}.{step['column']} ({transformation_type})")
+                    
+                    # Get SQL file info for better context (generic approach)
+                    sql_file = step.get("sql_file", "")
+                    file_name = sql_file.split("\\")[-1] if "\\" in sql_file else sql_file.split("/")[-1] if "/" in sql_file else f"{step['table']}.sql"
+                    
+                    dag_lines.append(f"{emoji} TABLE: {step['table']} ({file_name}):")
+                    dag_lines.append(f"    └─ {step['column']} ({transformation_type})")
                     if step.get("sql_expression"):
                         expr = step["sql_expression"]
                         if len(expr) > 80:
@@ -894,18 +983,27 @@ def build_enhanced_visual_dag(technical_context):
                         else:
                             dag_lines.append(f"    └─ {expr}")
                 
-                dag_lines.append("      ↓")
-                dag_lines.append("   [FLOWS TO]")
-                dag_lines.append("      ↓")
+                # Only add flow arrow if this isn't the last table
+                if i < len(table_order) - 1:
+                    dag_lines.append("      ↓")
+                    dag_lines.append("   [FLOWS TO]")
+                    dag_lines.append("      ↓")
         
-        # Show the consolidated CTE
-        dag_lines.append(f"🔄 CTE '{cte_name}' AGGREGATION STEP:")
+        # Add final flow arrow before CTE (no extra label needed)
+        if all_intermediate_steps:
+            dag_lines.append("      ↓")
+            dag_lines.append("   [FLOWS TO]")
+            dag_lines.append("      ↓")
+        
+        # Show the consolidated CTE with table context
+        cte_table_display = cte_table_name.split('.')[-1]  # Extract just the table name
+        dag_lines.append(f"🔄 CTE '{cte_name}' AGGREGATION STEP (in {cte_table_display}):")
         dag_lines.append(f"    📊 Produces: {', '.join(columns)}")
         
         # Show the actual transformations
         transformation_details = consolidated_cte.get("transformation_details", [])
         if transformation_details and isinstance(transformation_details, list):
-            dag_lines.append(f"    📊 Transformations:")
+            dag_lines.append(f"    📊 Aggregation Logic:")
             for transform in transformation_details:
                 if isinstance(transform, dict):
                     column = transform.get("column", "unknown")
@@ -924,14 +1022,20 @@ def build_enhanced_visual_dag(technical_context):
         presentation_steps = [s for s in steps if s["step_type"] == "TRANSFORMATION" and s.get("step", 0) < consolidated_cte.get("step", 999)]
         if presentation_steps:
             dag_lines.append("      ↓")
-            dag_lines.append("   [FLOWS TO]")
+            dag_lines.append("   [FLOWS TO PRESENTATION]")
             dag_lines.append("      ↓")
             
             for step in presentation_steps:
                 transformation_type = step.get("transformation_type", "unknown")
                 complexity = step.get("complexity_level", "").split(" - ")[0] if " - " in step.get("complexity_level", "") else ""
                 emoji = "🔧" if complexity == "HIGH" else ("⚙️" if complexity == "MEDIUM" else "📝")
-                dag_lines.append(f"{emoji} TABLE: {step['table']}.{step['column']} ({transformation_type})")
+                
+                # Get SQL file info (generic approach)
+                sql_file = step.get("sql_file", "")
+                file_name = sql_file.split("\\")[-1] if "\\" in sql_file else sql_file.split("/")[-1] if "/" in sql_file else f"{step['table']}.sql"
+                
+                dag_lines.append(f"{emoji} TABLE: {step['table']} ({file_name}):")
+                dag_lines.append(f"    └─ {step['column']} ({transformation_type})")
                 
                 if step.get("sql_expression"):
                     expr = step["sql_expression"]
@@ -960,12 +1064,18 @@ def build_enhanced_visual_dag(technical_context):
             if len(step_list) == 1:
                 step = step_list[0]
                 if step["step_type"] == "SOURCE":
-                    dag_lines.append(f"📍 SOURCE: {step['table']}.{step['column']} ({step['source_reason']})")
+                    dag_lines.append(f"📍 ULTIMATE SOURCE: {step['table']}.{step['column']} ({step['source_reason']})")
                 else:
                     transformation_type = step.get("transformation_type", "unknown")
                     complexity = step.get("complexity_level", "").split(" - ")[0] if " - " in step.get("complexity_level", "") else ""
                     emoji = "🔧" if complexity == "HIGH" else ("⚙️" if complexity == "MEDIUM" else "📝")
-                    dag_lines.append(f"{emoji} TABLE: {step['table']}.{step['column']} ({transformation_type})")
+                    
+                    # Get file info (generic approach)
+                    sql_file = step.get("sql_file", "")
+                    file_name = sql_file.split("\\")[-1] if "\\" in sql_file else sql_file.split("/")[-1] if "/" in sql_file else f"{step['table']}.sql"
+                    
+                    dag_lines.append(f"{emoji} TABLE: {step['table']} ({file_name}):")
+                    dag_lines.append(f"    └─ {step['column']} ({transformation_type})")
                     
                     if step.get("sql_expression"):
                         expr = step["sql_expression"]
@@ -978,12 +1088,12 @@ def build_enhanced_visual_dag(technical_context):
                 sources = [s for s in step_list if s["step_type"] == "SOURCE"]
                 if sources:
                     if len(sources) > 1:
-                        dag_lines.append(f"📦 MULTIPLE SOURCES:")
+                        dag_lines.append(f"📦 ULTIMATE DATA SOURCES:")
                         for source in sources:
-                            dag_lines.append(f"    📍 {source['table']}.{source['column']}")
+                            dag_lines.append(f"    📍 {source['table']}.{source['column']} ({source['source_reason']})")
                     else:
                         source = sources[0]
-                        dag_lines.append(f"📍 SOURCE: {source['table']}.{source['column']} ({source['source_reason']})")
+                        dag_lines.append(f"📍 ULTIMATE SOURCE: {source['table']}.{source['column']} ({source['source_reason']})")
             
             # Add flow arrow unless this is the last level
             if i < len(sorted_steps) - 1:
@@ -1053,13 +1163,6 @@ def format_context_for_llm(technical_context):
             llm_context.append(f"  Complexity Level: {step['complexity_level']}")
             llm_context.append(f"  Performance Impact: {step['performance_impact']}")
             llm_context.append(f"  Business Impact: {step['business_impact']}")
-            
-            # Show upstream sources for this CTE
-            if step.get("upstream_lineage"):
-                llm_context.append("  CTE Input Sources:")
-                for upstream in step["upstream_lineage"]:
-                    dep = upstream["dependency"]
-                    llm_context.append(f"    - {dep['table']}.{dep['column']} → {dep['context']}")
             
             # Show the actual SQL transformations happening in this CTE
             transformation_details = step.get("transformation_details")
@@ -1142,9 +1245,6 @@ def format_context_for_llm(technical_context):
             if step.get("control_dependencies"):
                 llm_context.append(f"  Control Dependencies: {step['control_dependencies']}")
     
-    # Use Case Specific Sections - REMOVED per user request
-    # The generic use case guidance was not needed for production use
-    
     return "\n".join(llm_context)
 
 
@@ -1213,9 +1313,6 @@ def quick_lineage_summary(compiled_sql_directory: str, presentation_table: str, 
         return None
 
 
-# Old function removed - using new comprehensive analysis instead
-
-
 # Example usage
 if __name__ == "__main__":
     import argparse
@@ -1251,15 +1348,15 @@ if __name__ == "__main__":
         if args.verbose:
             print("\n" + "="*80)
             print("🤖 COMPREHENSIVE TECHNICAL ANALYSIS:")
-            technical_context = build_comprehensive_technical_context(tracer, args.table, args.column)
             
-            if "error" in technical_context:
-                print(f"❌ Error: {technical_context['error']}")
-            else:
-                llm_ready_context = format_context_for_llm(technical_context)
+            # Use the same technical context from quick_result to avoid duplication
+            if quick_result and "error" not in quick_result:
+                llm_ready_context = format_context_for_llm(quick_result)
                 print("="*80)
                 print(llm_ready_context)
                 print("\n✅ Detailed column lineage analysis complete!")
+            else:
+                print("❌ Error: Could not generate comprehensive analysis")
         else:
             print("\n💡 Use --verbose flag for detailed LLM-ready technical context")
             

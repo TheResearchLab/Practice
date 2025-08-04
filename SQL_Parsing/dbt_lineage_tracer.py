@@ -143,7 +143,7 @@ class DBTLineageTracer:
                     "node_key": source_node_key,
                     "constructed": True  # Flag that this was constructed, not from relation_name
                 })
-    
+        
         return dependencies
     
     def _resolve_table_to_relation_name(self, table_reference: str) -> Optional[str]:
@@ -959,7 +959,8 @@ def build_comprehensive_technical_context(tracer, presentation_table: str, targe
 
 def build_enhanced_visual_dag(technical_context, include_source_definitions=False, tracer=None):
     """
-    Build architectural DAG showing actual data flow layers, not step-by-step transformations
+    Build architectural DAG showing actual data flow layers with CORRECT ORDER and PARALLEL FLOWS
+    FIXED: Uses dependency relationships to determine proper flow, shows parallel tables within layers
     """
     if "error" in technical_context:
         return "Error building enhanced DAG"
@@ -967,146 +968,215 @@ def build_enhanced_visual_dag(technical_context, include_source_definitions=Fals
     steps = technical_context["detailed_steps"]
     lineage_result = technical_context["lineage_structure"]
     
-    # Extract table dependencies
-    dependencies = get_upstream_tables(lineage_result)
-    
     dag_lines = []
     dag_lines.append("🎯 ENHANCED COLUMN LINEAGE FLOW:")
     dag_lines.append("="*60)
     
-    # Group steps by type
-    source_steps = [s for s in steps if s.get("step_type") == "SOURCE"]
-    transformation_steps = [s for s in steps if s.get("step_type") == "TRANSFORMATION"] 
-    cte_consolidated_steps = [s for s in steps if s.get("step_type") == "CTE_CONSOLIDATED"]
-    snapshot_steps = [s for s in steps if s.get("step_type") == "SNAPSHOT"]
-    error_steps = [s for s in steps if s.get("step_type") == "ERROR"]
+    # Build a complete table registry from all steps
+    all_tables = {}
+    for step in steps:
+        table = step.get('table', 'unknown')
+        step_type = step.get('step_type', 'unknown')
+        
+        if table not in all_tables:
+            all_tables[table] = {
+                'step_info': step,
+                'layer': None,
+                'dependencies': set()
+            }
+        
+        # Classify by type and naming convention
+        if step_type == "SOURCE":
+            all_tables[table]['layer'] = 'source'
+        elif step_type == "SNAPSHOT":
+            all_tables[table]['layer'] = 'snapshot'
+        elif table.startswith('stg_'):
+            all_tables[table]['layer'] = 'staging'
+        elif table.startswith('wrk_'):
+            all_tables[table]['layer'] = 'work'
+        elif table.startswith('dim_') or table.startswith('fct_'):
+            all_tables[table]['layer'] = 'mart'
+        else:
+            all_tables[table]['layer'] = 'other'
     
-    # 1. Show ultimate sources
-    if source_steps:
-        dag_lines.append("📦 ULTIMATE DATA SOURCES:")
-        source_tables = []
-        for source in source_steps:
-            table = source.get('table', 'unknown')
-            column = source.get('column', 'unknown')
-            reason = source.get('source_reason', 'unknown')
-            source_tables.append(f"{table}")
+    # Extract dependencies from lineage structure
+    def extract_all_dependencies(result):
+        """Recursively extract all table->table dependencies"""
+        deps = {}
+        
+        def walk_dependencies(node, current_table=None):
+            if not isinstance(node, dict):
+                return
+                
+            table = node.get('table', '').split('.')[-1]  # Get table name only
+            if table and table != 'unknown':
+                if table not in deps:
+                    deps[table] = set()
+                
+                upstream_lineage = node.get('upstream_lineage', [])
+                for upstream in upstream_lineage:
+                    if isinstance(upstream, dict):
+                        upstream_trace = upstream.get('upstream_trace', {})
+                        if upstream_trace and isinstance(upstream_trace, dict):
+                            upstream_table = upstream_trace.get('table', '').split('.')[-1]
+                            if upstream_table and upstream_table != 'unknown':
+                                # Only add non-source dependencies for ordering
+                                if upstream_trace.get('type') not in ['source', 'error']:
+                                    deps[table].add(upstream_table)
+                            
+                            # Recursively process upstream
+                            walk_dependencies(upstream_trace)
+        
+        walk_dependencies(result)
+        return deps
+    
+    table_dependencies = extract_all_dependencies(lineage_result)
+    
+    # Update all_tables with extracted dependencies
+    for table, deps in table_dependencies.items():
+        if table in all_tables:
+            all_tables[table]['dependencies'] = deps
+    
+    # Group tables by layer
+    layers = {
+        'source': [],
+        'staging': [],
+        'work': [],
+        'other': [],
+        'snapshot': [],
+        'mart': []
+    }
+    
+    for table, info in all_tables.items():
+        layer = info['layer']
+        if layer in layers:
+            layers[layer].append(table)
+    
+    # Layer display configuration
+    layer_order = ['source', 'staging', 'work', 'other', 'snapshot', 'mart']
+    layer_config = {
+        'source': {'name': '📦 ULTIMATE DATA SOURCES', 'emoji': '📍'},
+        'staging': {'name': '📝 STAGING LAYER', 'emoji': '📝'},
+        'work': {'name': '⚙️ WORK LAYER', 'emoji': '⚙️'},
+        'other': {'name': '🔧 TRANSFORMATION LAYER', 'emoji': '🔧'},
+        'snapshot': {'name': '📸 SNAPSHOT LAYER', 'emoji': '📸'},
+        'mart': {'name': '🎯 MART LAYER', 'emoji': '🎯'}
+    }
+    
+    # Display each layer
+    for layer_key in layer_order:
+        layer_tables = layers[layer_key]
+        if not layer_tables:
+            continue
             
-            # Add source definitions if requested
-            if include_source_definitions and tracer:
-                source_def = tracer.get_source_definition(table, column)
-                if source_def:
-                    dag_lines.append(f"    📍 {table}.{column} ({reason})")
-                    dag_lines.append(f"        └─ Type: {source_def.get('data_type', 'Unknown')}")
-                    dag_lines.append(f"        └─ Description: {source_def.get('description', 'No description available')}")
+        layer_config_item = layer_config[layer_key]
+        
+        if layer_key == 'source':
+            # Special handling for sources
+            dag_lines.append(f"{layer_config_item['name']}:")
+            for table in layer_tables:
+                step_info = all_tables[table]['step_info']
+                column = step_info.get('column', 'unknown')
+                reason = step_info.get('source_reason', 'unknown')
+                
+                if include_source_definitions and tracer:
+                    source_def = tracer.get_source_definition(table, column)
+                    if source_def:
+                        dag_lines.append(f"    {layer_config_item['emoji']} {table}.{column} ({reason})")
+                        dag_lines.append(f"        └─ Type: {source_def.get('data_type', 'Unknown')}")
+                        dag_lines.append(f"        └─ Description: {source_def.get('description', 'No description available')}")
+                    else:
+                        dag_lines.append(f"    {layer_config_item['emoji']} {table}.{column} ({reason})")
                 else:
-                    dag_lines.append(f"    📍 {table}.{column} ({reason})")
-            else:
-                dag_lines.append(f"    📍 {table}.{column} ({reason})")
+                    dag_lines.append(f"    {layer_config_item['emoji']} {table}.{column} ({reason})")
         
-        dag_lines.append("      ↓")
-    
-    # 2. Group transformation tables by architectural layers
-    if transformation_steps or cte_consolidated_steps:
-        all_transform_steps = transformation_steps + cte_consolidated_steps
+        elif layer_key == 'snapshot':
+            # Special handling for snapshots
+            dag_lines.append(f"{layer_config_item['name']}:")
+            for table in layer_tables:
+                # Get upstream dependencies to show convergence
+                upstream_deps = table_dependencies.get(table, set())
+                
+                if len(upstream_deps) > 1:
+                    # Multiple sources - show convergence
+                    upstream_list = sorted(list(upstream_deps))
+                    dag_lines.append(f"    {layer_config_item['emoji']} {table} ← ({', '.join(upstream_list)}) (DBT Snapshot - SCD Type 2)")
+                    dag_lines.append(f"        └─ Converges {len(upstream_deps)} upstream tables into historical snapshot")
+                elif len(upstream_deps) == 1:
+                    # Single source
+                    upstream_table = list(upstream_deps)[0]
+                    dag_lines.append(f"    {layer_config_item['emoji']} {table} ← ({upstream_table}) (DBT Snapshot - SCD Type 2)")
+                    dag_lines.append(f"        └─ Captures historical changes with validity dates")
+                else:
+                    # No dependencies found
+                    dag_lines.append(f"    {layer_config_item['emoji']} {table} (DBT Snapshot - SCD Type 2)")
+                    dag_lines.append(f"        └─ Captures historical changes with validity dates")
         
-        # Group tables by naming convention to identify layers
-        layers = {
-            'staging': [],
-            'work': [], 
-            'mart': [],
-            'other': []
-        }
-        
-        processed_tables = set()
-        for step in all_transform_steps:
-            table = step.get('table', 'unknown')
-            if table in processed_tables:
-                continue
-            processed_tables.add(table)
+        else:
+            # Regular transformation layers
+            dag_lines.append(f"{layer_config_item['name']}:")
             
-            # Classify by naming convention
-            if table.startswith('stg_'):
-                layers['staging'].append(table)
-            elif table.startswith('wrk_'):
-                layers['work'].append(table)
-            elif table.startswith('dim_') or table.startswith('fct_'):
-                layers['mart'].append(table)
-            else:
-                layers['other'].append(table)
-        
-        # Show layers in architectural order
-        layer_order = ['staging', 'work', 'other', 'mart']
-        layer_names = {
-            'staging': '📝 STAGING LAYER',
-            'work': '⚙️ WORK LAYER', 
-            'mart': '🎯 MART LAYER',
-            'other': '🔧 TRANSFORMATION LAYER'
-        }
-        
-        for layer_key in layer_order:
-            if layers[layer_key]:
-                dag_lines.append(f"{layer_names[layer_key]}:")
+            # Sort tables within layer by dependencies (if any)
+            def sort_by_dependencies(tables):
+                # Simple sort - tables with fewer dependencies first
+                return sorted(tables, key=lambda t: len(table_dependencies.get(t, set())))
+            
+            sorted_tables = sort_by_dependencies(layer_tables)
+            
+            for table in sorted_tables:
+                step_info = all_tables[table]['step_info']
+                column = step_info.get('column', 'unknown')
+                transform_type = step_info.get('transformation_type', 'unknown')
+                complexity = step_info.get("complexity_level", "").split(" - ")[0] if " - " in step_info.get("complexity_level", "") else ""
                 
-                # Show tables in this layer
-                for table in layers[layer_key]:
-                    # Find the step details for this table
-                    table_steps = [s for s in all_transform_steps if s.get('table') == table]
-                    
-                    if table_steps:
-                        step = table_steps[0]  # Use first step for table details
-                        column = step.get('column', 'unknown')
-                        transform_type = step.get('transformation_type', 'unknown')
-                        complexity = step.get("complexity_level", "").split(" - ")[0] if " - " in step.get("complexity_level", "") else ""
-                        
-                        # Check for CTE consolidation
-                        has_cte_consolidation = any(s.get("step_type") == "CTE_CONSOLIDATED" for s in table_steps)
-                        
-                        if has_cte_consolidation:
-                            cte_step = next(s for s in table_steps if s.get("step_type") == "CTE_CONSOLIDATED")
-                            table_with_upstream = format_table_with_upstream(table, dependencies)
-                            dag_lines.append(f"    🔧 {table_with_upstream} (CTE Aggregation)")
-                            dag_lines.append(f"        └─ CTE '{cte_step.get('cte_name', 'unknown')}' aggregates {len(cte_step.get('consolidated_columns', []))} metrics")
+                # Get upstream dependencies for display
+                upstream_deps = table_dependencies.get(table, set())
+                
+                # Format table with upstream
+                if upstream_deps:
+                    upstream_list = sorted(list(upstream_deps))
+                    table_display = f"{table} ← ({', '.join(upstream_list)})"
+                else:
+                    table_display = table
+                
+                # Choose emoji based on complexity or layer
+                if complexity == "HIGH":
+                    emoji = "🔧"
+                elif complexity == "MEDIUM":
+                    emoji = "⚙️"
+                else:
+                    emoji = layer_config_item['emoji']
+                
+                dag_lines.append(f"    {emoji} {table_display}")
+                dag_lines.append(f"        └─ {column} ({transform_type})")
+                
+                # Show transformation details
+                if step_info.get("sql_expression"):
+                    expr = step_info["sql_expression"]
+                    if len(expr) > 60:
+                        if "CASE" in expr.upper():
+                            dag_lines.append(f"        └─ Complex CASE logic")
+                        elif "||" in expr:
+                            dag_lines.append(f"        └─ String concatenation")
+                        elif any(agg in expr.upper() for agg in ["COUNT(", "SUM(", "AVG(", "MAX(", "MIN("]):
+                            agg_type = next(agg for agg in ["COUNT", "SUM", "AVG", "MAX", "MIN"] if agg + "(" in expr.upper())
+                            dag_lines.append(f"        └─ {agg_type} aggregation")
                         else:
-                            emoji = "🔧" if complexity == "HIGH" else ("⚙️" if complexity == "MEDIUM" else "📝")
-                            table_with_upstream = format_table_with_upstream(table, dependencies)
-                            dag_lines.append(f"    {emoji} {table_with_upstream}")
-                            dag_lines.append(f"        └─ {column} ({transform_type})")
-                            
-                            # Show key transformation details
-                            if step.get("sql_expression"):
-                                expr = step["sql_expression"]
-                                if len(expr) > 60:
-                                    if "CASE" in expr.upper():
-                                        dag_lines.append(f"        └─ Complex CASE logic")
-                                    elif "||" in expr:
-                                        dag_lines.append(f"        └─ String concatenation")
-                                    elif any(agg in expr.upper() for agg in ["COUNT(", "SUM(", "AVG(", "MAX(", "MIN("]):
-                                        agg_type = next(agg for agg in ["COUNT", "SUM", "AVG", "MAX", "MIN"] if agg + "(" in expr.upper())
-                                        dag_lines.append(f"        └─ {agg_type} aggregation")
-                                    else:
-                                        dag_lines.append(f"        └─ {expr[:50]}...")
-                                else:
-                                    dag_lines.append(f"        └─ {expr}")
-                            
-                            # Show CTE information if present
-                            if step.get("has_cte_logic"):
-                                cte_summary = step.get('cte_summary', 'CTE transformations')
-                                dag_lines.append(f"        └─ Contains CTE: {cte_summary}")
+                            dag_lines.append(f"        └─ {expr[:50]}...")
+                    else:
+                        dag_lines.append(f"        └─ {expr}")
                 
-                dag_lines.append("      ↓")
+                # Show CTE information if present
+                if step_info.get("has_cte_logic"):
+                    cte_summary = step_info.get('cte_summary', 'CTE transformations')
+                    dag_lines.append(f"        └─ Contains CTE: {cte_summary}")
+        
+        # Add flow arrow between layers (except after the last layer)
+        if layer_key != 'mart':
+            dag_lines.append("      ↓")
     
-    # 3. Show snapshots
-    if snapshot_steps:
-        dag_lines.append("📸 SNAPSHOT LAYER:")
-        for snapshot in snapshot_steps:
-            table = snapshot.get('table', 'unknown')
-            table_with_upstream = format_table_with_upstream(table, dependencies)
-            dag_lines.append(f"    📸 {table_with_upstream} (DBT Snapshot)")
-            dag_lines.append(f"        └─ Captures historical changes with validity dates")
-        dag_lines.append("      ↓")
-        dag_lines.append("   [FLOWS TO MART TABLES]")
-    
-    # 4. Show errors if any
+    # Show errors if any
+    error_steps = [s for s in steps if s.get("step_type") == "ERROR"]
     if error_steps:
         dag_lines.append("")
         dag_lines.append("⚠️  ERRORS ENCOUNTERED:")
@@ -1258,399 +1328,6 @@ def quick_lineage_summary(compiled_sql_directory: str, presentation_table: str, 
         import traceback
         traceback.print_exc()
         return None, None
-
-
-# Column lineage functions - these need to be included for the trace_column_lineage import
-def extract_snowflake_columns(sql_query):
-    """
-    Extracts column lineage information from a Snowflake SQL query.
-    Returns a list of lists, each describing the output columns for each SELECT.
-    """
-    parsed = sqlglot.parse_one(sql_query, dialect="snowflake")
-
-    def expr_to_str(expr):
-        return expr.sql(dialect="snowflake") if expr else None
-
-    def collect_source_columns(expr):
-        sources = set()
-        for node in expr.walk():
-            if isinstance(node, exp.Column):
-                # Get table alias/name - could be empty string
-                table_ref = node.table if node.table else ""
-                sources.add((table_ref, node.name))
-        return list(sources)
-
-    # Helper: get all tables in the FROM clause of a SELECT
-    def get_from_tables(select, cte_registry=None):
-        """
-        Returns a dict mapping alias (lowercase) -> (full_table_name, alias)
-        Now also considers CTEs in the registry
-        """
-        if cte_registry is None:
-            cte_registry = {}
-            
-        tables = {}
-        
-        from_expr = select.args.get("from")
-        if from_expr:
-            # Base table
-            base = from_expr.args.get("this")
-            if isinstance(base, exp.Table):
-                db = base.catalog or ""
-                schema = base.db or ""
-                name = base.name
-                
-                # Check if this is a CTE first
-                if name.lower() in cte_registry:
-                    # This is a CTE reference
-                    alias = base.alias or name
-                    tables[alias.lower()] = (f"CTE:{name}", alias)
-                else:
-                    # Regular table
-                    if db and schema:
-                        full_name = f"{db}.{schema}.{name}"
-                    elif schema:
-                        full_name = f"{schema}.{name}"
-                    else:
-                        full_name = name
-                    alias = base.alias or name
-                    tables[alias.lower()] = (full_name, alias)
-        
-        # JOINs are stored at the SELECT level, not FROM level
-        joins = select.args.get("joins")
-        if joins:
-            for join in joins:
-                join_table = join.args.get("this")
-                if isinstance(join_table, exp.Table):
-                    db = join_table.catalog or ""
-                    schema = join_table.db or ""
-                    name = join_table.name
-                    
-                    # Check if this is a CTE first
-                    if name.lower() in cte_registry:
-                        # This is a CTE reference
-                        alias = join_table.alias or name
-                        tables[alias.lower()] = (f"CTE:{name}", alias)
-                    else:
-                        # Regular table
-                        if db and schema:
-                            full_name = f"{db}.{schema}.{name}"
-                        elif schema:
-                            full_name = f"{schema}.{name}"
-                        else:
-                            full_name = name
-                        alias = join_table.alias or name
-                        tables[alias.lower()] = (full_name, alias)
-                        
-        return tables
-    
-    # Build CTE registry first
-    cte_registry = {}
-    with_clause = parsed.args.get("with")
-    if with_clause:
-        for cte in with_clause.expressions:
-            cte_name = cte.alias
-            cte_query = cte.this  # The SELECT part of the CTE
-            cte_registry[cte_name.lower()] = cte_query
-    
-    selects = [node for node in parsed.walk() if isinstance(node, exp.Select)]
-    all_columns = []
-    
-    for idx, select in enumerate(selects):
-        select_columns = []
-        from_tables = get_from_tables(select, cte_registry)
-        only_table = list(from_tables.values())[0][0] if len(from_tables) == 1 else None
-        
-        for proj in select.expressions:
-            alias = proj.alias_or_name
-            expression_sql = expr_to_str(proj)
-            source_columns = collect_source_columns(proj)
-            resolved_sources = []
-            
-            for tbl_alias, col_name in source_columns:
-                if not tbl_alias and only_table:
-                    # No table alias and only one table - use that table
-                    resolved_sources.append((only_table, col_name))
-                elif tbl_alias:
-                    # Has table alias - look it up in from_tables
-                    tbl_alias_lc = tbl_alias.lower()
-                    if tbl_alias_lc in from_tables:
-                        full_table, real_alias = from_tables[tbl_alias_lc]
-                        resolved_sources.append((full_table, real_alias, col_name))
-                    else:
-                        # Alias not found in from_tables - keep as is
-                        resolved_sources.append((tbl_alias, col_name))
-                else:
-                    # No table alias and multiple tables - ambiguous
-                    resolved_sources.append((tbl_alias, col_name))
-            
-            # Determine column type
-            if isinstance(proj, exp.Column):
-                col_type = "direct"
-            elif proj.is_star:
-                col_type = "star"
-            elif not source_columns:
-                col_type = "constant"
-            else:
-                col_type = "calculated"
-            
-            select_columns.append({
-                "select_idx": idx,
-                "target_column": alias,
-                "expression": expression_sql,
-                "source_columns": source_columns,
-                "resolved_source_columns": resolved_sources,
-                "type": col_type
-            })
-        
-        all_columns.append(select_columns)
-    
-    return all_columns
-
-
-def trace_column_lineage(sql_query, target_column_name):
-    """
-    Traces a specific column through all transformations and builds LLM-ready context.
-    FIXED: Now properly handles both 'column' and 'columns' keys in CTE transformations
-    """
-    
-    # Parse and build CTE registry
-    parsed = sqlglot.parse_one(sql_query, dialect="snowflake")
-    cte_registry = {}
-    with_clause = parsed.args.get("with")
-    if with_clause:
-        for cte in with_clause.expressions:
-            cte_name = cte.alias
-            cte_query = cte.this
-            cte_registry[cte_name.lower()] = cte_query
-    
-    # Get basic column analysis
-    base_columns = extract_snowflake_columns(sql_query)
-    
-    # Find the target column in the final output
-    target_column_info = None
-    target_select_branch = None
-    
-    for select_idx, select_columns in enumerate(base_columns):
-        for col_info in select_columns:
-            if col_info['target_column'].lower() == target_column_name.lower():
-                target_column_info = col_info
-                target_select_branch = select_idx + 1
-                break
-        if target_column_info:
-            break
-    
-    if not target_column_info:
-        return {
-            "error": f"Column '{target_column_name}' not found in query output",
-            "llm_context": f"The column '{target_column_name}' was not found in the final query output.",
-            "next_columns_to_search": [],
-            "full_lineage": {}
-        }
-    
-    # Build LLM context
-    llm_context_parts = []
-    next_columns = []
-    cte_transformations = []  # Track internal CTE transformations
-    
-    # Basic column information
-    llm_context_parts.append(f"COLUMN: {target_column_name}")
-    llm_context_parts.append(f"EXPRESSION: {target_column_info['expression']}")
-    llm_context_parts.append(f"TRANSFORMATION TYPE: {target_column_info['type']}")
-    
-    if target_select_branch:
-        llm_context_parts.append(f"FOUND IN: SELECT branch {target_select_branch}")
-    
-    # Process resolved sources and trace through CTEs
-    resolved_sources = target_column_info.get('resolved_source_columns', [])
-    
-    if resolved_sources:
-        llm_context_parts.append("\nSOURCE ANALYSIS:")
-        
-        # Group resolved sources by table to detect multiple dependencies from same table/CTE
-        sources_by_table = {}
-        for source in resolved_sources:
-            if len(source) >= 3:  # (table, alias, column)
-                table, alias, column = source[:3]
-                table_key = table
-            elif len(source) == 2:  # (table, column)
-                table, column = source
-                alias = table
-                table_key = table
-            else:
-                continue
-                
-            if table_key not in sources_by_table:
-                sources_by_table[table_key] = []
-            sources_by_table[table_key].append((table, alias, column))
-        
-        # Process each table's dependencies
-        for table_key, table_sources in sources_by_table.items():
-            if len(table_sources) == 1:
-                # Single dependency from this table
-                table, alias, column = table_sources[0]
-                
-                # Check if this is a CTE reference
-                if table.startswith("CTE:"):
-                    cte_name = table.replace("CTE:", "")
-                    llm_context_parts.append(f"  └─ CTE REFERENCE: {alias}.{column} → {cte_name}.{column}")
-                    
-                    # Trace through the CTE
-                    if cte_name.lower() in cte_registry:
-                        cte_query = cte_registry[cte_name.lower()]
-                        cte_sql = cte_query.sql(dialect="snowflake")
-                        llm_context_parts.append(f"  └─ TRACING CTE '{cte_name}' (INTRA-FILE TRANSFORMATION):")
-                        
-                        # Recursively analyze the CTE
-                        cte_trace = trace_column_lineage(cte_sql, column)
-                        if "error" not in cte_trace:
-                            # Add CTE transformation info
-                            cte_transformations.append({
-                                "cte_name": cte_name,
-                                "column": column,
-                                "transformation_type": "intra_file_cte",
-                                "details": cte_trace.get("llm_context", ""),
-                                "dependencies": cte_trace.get("next_columns_to_search", [])
-                            })
-                            
-                            # Add CTE's external dependencies to our next_columns (not the CTE itself)
-                            for cte_dep in cte_trace.get("next_columns_to_search", []):
-                                next_columns.append({
-                                    "table": cte_dep["table"],
-                                    "column": cte_dep["column"],
-                                    "context": f"External source for {target_column_name} via CTE {cte_name}",
-                                    "level": "external_via_cte",
-                                    "cte_intermediate": cte_name
-                                })
-                            
-                            # Add CTE context to LLM output
-                            cte_context_lines = cte_trace["llm_context"].split('\n')
-                            for line in cte_context_lines:
-                                if line.strip():
-                                    llm_context_parts.append(f"    {line}")
-                        else:
-                            llm_context_parts.append(f"    ERROR tracing CTE: {cte_trace['error']}")
-                    else:
-                        llm_context_parts.append(f"    WARNING: CTE '{cte_name}' not found in registry")
-                        
-                else:
-                    # Regular table reference
-                    llm_context_parts.append(f"  └─ EXTERNAL TABLE: {table}.{column} (referenced as {alias}.{column})")
-                    next_columns.append({
-                        "table": table,
-                        "column": column,
-                        "context": f"External table dependency for {target_column_name}",
-                        "level": "external_table"
-                    })
-            
-            else:
-                # Multiple dependencies from same table - group them
-                table_name = table_key.replace("CTE:", "") if table_key.startswith("CTE:") else table_key
-                columns = [col for _, _, col in table_sources]
-                
-                llm_context_parts.append(f"  └─ MULTIPLE DEPENDENCIES FROM {table_name}:")
-                for table, alias, column in table_sources:
-                    llm_context_parts.append(f"    • {alias}.{column}")
-                
-                if table_key.startswith("CTE:"):
-                    # Multiple CTE dependencies - consolidate them
-                    cte_name = table_key.replace("CTE:", "")
-                    llm_context_parts.append(f"  └─ CONSOLIDATED CTE ANALYSIS for '{cte_name}':")
-                    
-                    if cte_name.lower() in cte_registry:
-                        cte_query = cte_registry[cte_name.lower()]
-                        cte_sql = cte_query.sql(dialect="snowflake")
-                        
-                        # Get all unique external dependencies from this CTE
-                        all_cte_deps = set()
-                        cte_column_details = []
-                        
-                        for table, alias, column in table_sources:
-                            cte_trace = trace_column_lineage(cte_sql, column)
-                            if "error" not in cte_trace:
-                                cte_column_details.append({
-                                    "column": column,
-                                    "trace": cte_trace
-                                })
-                                
-                                # Collect external dependencies
-                                for cte_dep in cte_trace.get("next_columns_to_search", []):
-                                    dep_key = (cte_dep["table"], cte_dep["column"])
-                                    all_cte_deps.add(dep_key)
-                        
-                        # Add consolidated CTE transformation
-                        cte_transformations.append({
-                            "cte_name": cte_name,
-                            "columns": columns,  # Multiple columns - use 'columns' key
-                            "transformation_type": "consolidated_cte",
-                            "details": f"CTE processes {len(columns)} columns: {', '.join(columns)}",
-                            "column_details": cte_column_details
-                        })
-                        
-                        # Add unique external dependencies
-                        for dep_table, dep_column in all_cte_deps:
-                            next_columns.append({
-                                "table": dep_table,
-                                "column": dep_column,
-                                "context": f"External source for {target_column_name} via consolidated CTE {cte_name}",
-                                "level": "external_via_cte",
-                                "cte_intermediate": cte_name
-                            })
-                        
-                        # Show consolidated CTE analysis
-                        llm_context_parts.append(f"    └─ CTE '{cte_name}' processes {len(columns)} output columns")
-                        llm_context_parts.append(f"    └─ External dependencies: {len(all_cte_deps)} unique sources")
-                        
-                else:
-                    # Multiple dependencies from regular table
-                    for table, alias, column in table_sources:
-                        next_columns.append({
-                            "table": table,
-                            "column": column,
-                            "context": f"External table dependency for {target_column_name}",
-                            "level": "external_table"
-                        })
-    
-    # Show CTE transformations summary with safe access to column/columns
-    if cte_transformations:
-        llm_context_parts.append(f"\nINTRA-FILE CTE TRANSFORMATIONS:")
-        for cte_info in cte_transformations:
-            # FIXED: Handle both 'column' and 'columns' keys safely
-            if 'column' in cte_info:
-                column_info = cte_info['column']
-            elif 'columns' in cte_info:
-                columns_list = cte_info['columns']
-                if isinstance(columns_list, list):
-                    column_info = ', '.join(columns_list)
-                else:
-                    column_info = str(columns_list)
-            else:
-                column_info = 'unknown'
-            
-            llm_context_parts.append(f"  CTE '{cte_info['cte_name']}' transforms {column_info}")
-            llm_context_parts.append(f"    └─ Type: {cte_info.get('transformation_type', 'unknown')}")
-    
-    # Show CTE definitions if relevant
-    if cte_registry:
-        llm_context_parts.append(f"\nAVAILABLE CTEs IN THIS FILE:")
-        for cte_name in cte_registry.keys():
-            llm_context_parts.append(f"  - {cte_name}")
-    
-    # Remove duplicates from next_columns
-    unique_next_columns = []
-    seen = set()
-    for col in next_columns:
-        key = (col['table'], col['column'], col['level'])
-        if key not in seen:
-            seen.add(key)
-            unique_next_columns.append(col)
-    
-    return {
-        "llm_context": "\n".join(llm_context_parts),
-        "next_columns_to_search": unique_next_columns,
-        "cte_transformations": cte_transformations,
-        "full_lineage": target_column_info
-    }
 
 
 # Example usage

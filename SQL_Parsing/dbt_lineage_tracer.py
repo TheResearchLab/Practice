@@ -53,20 +53,41 @@ class DBTLineageTracer:
     def _check_snapshot_dependencies(self, table_name: str) -> List[Dict]:
         """
         Check if table is a snapshot and return its dependencies from manifest
+        FIXED: Generic solution that properly bridges manifest -> SQL references
         """
         if not self.manifest_data:
             return []
         
         nodes = self.manifest_data.get('nodes', {})
         
-        # Find the snapshot node
+        # Find the snapshot node - use GENERIC matching approach
         snapshot_node = None
+        matching_relation_name = None
+        
         for key, node in nodes.items():
-            if (key.startswith('snapshot.') and 
-                (node.get('name') == table_name or 
-                 node.get('alias') == table_name or
-                 key.endswith(f'.{table_name}'))):
+            if not key.startswith('snapshot.'):
+                continue
+                
+            # Get the actual relation_name from manifest (this is the SQL reference)
+            relation_name = node.get('relation_name', '')
+            
+            # Clean relation_name (remove quotes, normalize)
+            clean_relation = relation_name.replace('"', '').lower()
+            clean_table_name = table_name.lower()
+            
+            # Check if this snapshot matches our table reference
+            # Support multiple matching strategies:
+            # 1. Full match: database.schema.table == relation_name
+            # 2. Suffix match: table matches the last part of relation_name
+            # 3. Name match: snapshot name/alias matches
+            
+            if (clean_relation == clean_table_name or 
+                clean_relation.endswith(f".{clean_table_name}") or
+                node.get('name', '').lower() == clean_table_name or
+                node.get('alias', '').lower() == clean_table_name):
+                
                 snapshot_node = node
+                matching_relation_name = relation_name
                 break
         
         if not snapshot_node:
@@ -80,7 +101,28 @@ class DBTLineageTracer:
         for source_node_key in source_node_keys:
             # Look up the dependency in the nodes section
             source_node = nodes.get(source_node_key, {})
-            if source_node:
+            if not source_node:
+                continue
+                
+            # CRITICAL FIX: Use the relation_name from manifest, not constructed name
+            # This is the ACTUAL table reference that will appear in SQL
+            dependency_relation_name = source_node.get('relation_name', '')
+            
+            if dependency_relation_name:
+                # Clean the relation name for SQL matching
+                clean_dependency_name = dependency_relation_name.replace('"', '')
+                
+                dependencies.append({
+                    "table": clean_dependency_name,  # This will match SQL references
+                    "column": "*",
+                    "context": "snapshot_source", 
+                    "level": "external_table",
+                    "resource_type": source_node.get('resource_type', 'unknown'),
+                    "node_key": source_node_key,
+                    "original_relation_name": dependency_relation_name  # Keep original for debugging
+                })
+            else:
+                # Fallback: construct name if relation_name missing (shouldn't happen in good manifests)
                 db = source_node.get('database', '')
                 schema = source_node.get('schema', '')
                 name = source_node.get('alias') or source_node.get('name', '')
@@ -94,14 +136,50 @@ class DBTLineageTracer:
                 
                 dependencies.append({
                     "table": full_name,
-                    "column": "*",
-                    "context": "snapshot_source",
+                    "column": "*", 
+                    "context": "snapshot_source_fallback",
                     "level": "external_table",
                     "resource_type": source_node.get('resource_type', 'unknown'),
-                    "node_key": source_node_key
+                    "node_key": source_node_key,
+                    "constructed": True  # Flag that this was constructed, not from relation_name
                 })
-        
+    
         return dependencies
+    
+    def _resolve_table_to_relation_name(self, table_reference: str) -> Optional[str]:
+        """
+        NEW METHOD: Convert any table reference to its actual relation_name from manifest
+        This bridges the gap between SQL references and manifest metadata
+        
+        Args:
+            table_reference: Any table reference found in SQL (e.g., "database.schema.table")
+            
+        Returns:
+            The actual relation_name from manifest, or None if not found
+        """
+        if not self.manifest_data:
+            return None
+            
+        nodes = self.manifest_data.get('nodes', {})
+        clean_table_ref = table_reference.replace('"', '').lower()
+        
+        # Search through all nodes to find matching relation_name
+        for key, node in nodes.items():
+            relation_name = node.get('relation_name', '')
+            if not relation_name:
+                continue
+                
+            clean_relation = relation_name.replace('"', '').lower()
+            
+            # Multiple matching strategies
+            if (clean_relation == clean_table_ref or
+                clean_relation.endswith(f".{clean_table_ref}") or
+                clean_table_ref.endswith(f".{clean_relation}") or
+                clean_relation.split('.')[-1] == clean_table_ref.split('.')[-1]):
+                
+                return relation_name.replace('"', '')  # Return clean relation name
+        
+        return None
     
     def load_source_definitions(self, source_definitions_file: str) -> None:
         """
@@ -213,21 +291,11 @@ class DBTLineageTracer:
     
     def trace_column_lineage_across_files(self, presentation_table: str, target_column: str, visited: Optional[Set[str]] = None, show_cte_messages: bool = True) -> Dict:
         """
-        Main entry point: Trace a specific column from presentation layer back to all source tables
-        
-        Args:
-            presentation_table: Name of the presentation table
-            target_column: Name of the column to trace
-            visited: Set of tables already visited (to prevent circular references)
-            show_cte_messages: Whether to show CTE transformation messages
-            
-        Returns:
-            Complete lineage information for the target column
+        FIXED: Properly bridges between SQL references, manifest data, and back to SQL
         """
         if visited is None:
             visited = set()
             
-        # Create unique key for table.column to prevent infinite loops
         visit_key = f"{presentation_table}.{target_column}"
         if visit_key in visited:
             return {"error": f"Circular reference detected: {visit_key}"}
@@ -236,23 +304,23 @@ class DBTLineageTracer:
         
         print(f"\n🔍 Tracing column '{target_column}' in table '{presentation_table}'")
         
-        # Check for snapshot dependencies first
+        # STEP 1: Check if this is a snapshot using the ACTUAL table reference
+        # The presentation_table might be a full SQL reference like "database.schema.table"
         snapshot_dependencies = self._check_snapshot_dependencies(presentation_table)
         
         if snapshot_dependencies:
             print(f"📸 Found snapshot with {len(snapshot_dependencies)} source dependencies")
-            
             upstream_lineage = []
             
-            if len(snapshot_dependencies) == 1:
-                # Single source - column definitely comes from this table
-                dep = snapshot_dependencies[0]
-                dep_table = dep['table']
-                print(f"   📋 Single snapshot source: {dep_table} → column '{target_column}' traces through this path")
+            for i, dep in enumerate(snapshot_dependencies, 1):
+                dep_table = dep['table']  # This is now the ACTUAL relation_name from manifest
+                print(f"   📋 Snapshot dependency {i}: {dep_table}")
                 
+                # Check if this dependency is a source (external) table
                 is_source, reason = self.is_source_table(dep_table)
+                
                 if is_source:
-                    print(f"   ✅ Found source: {dep_table} ({reason})")
+                    print(f"   ✅ Found external source: {dep_table} ({reason})")
                     upstream_lineage.append({
                         "dependency": dep,
                         "upstream_trace": {
@@ -264,12 +332,15 @@ class DBTLineageTracer:
                         }
                     })
                 else:
+                    # This is an internal table - continue tracing
+                    # CRITICAL: Extract just the table name for file lookup
                     dep_table_name = self.extract_table_name_from_full_ref(dep_table)
                     dep_visit_key = f"{dep_table}.{target_column}"
                     
                     if dep_visit_key not in visited:
-                        print(f"   ⬆️  Tracing upstream: {dep_table}")
+                        print(f"   ⬆️  Tracing upstream: {dep_table} -> {dep_table_name}")
                         try:
+                            # FIXED: Pass the table name for file lookup, but preserve full reference in results
                             upstream_trace = self.trace_column_lineage_across_files(
                                 dep_table_name, 
                                 target_column, 
@@ -282,62 +353,23 @@ class DBTLineageTracer:
                             })
                         except Exception as e:
                             print(f"❌ Error tracing {dep_table}: {e}")
-            else:
-                # Multiple sources - column exists in ALL tables, trace ALL paths
-                print(f"   📋 Multiple snapshot sources: column '{target_column}' exists in {len(snapshot_dependencies)} tables")
-                print(f"   🔍 Will trace ALL paths as column may come from any/all sources")
-                
-                for i, dep in enumerate(snapshot_dependencies, 1):
-                    dep_table = dep['table']
-                    print(f"   📋 Path {i}/{len(snapshot_dependencies)}: {dep_table}")
-                    
-                    is_source, reason = self.is_source_table(dep_table)
-                    if is_source:
-                        print(f"      ✅ Found source: {dep_table} ({reason})")
-                        upstream_lineage.append({
-                            "dependency": dep,
-                            "upstream_trace": {
-                                "table": dep_table,
-                                "column": target_column,
-                                "type": "source",
-                                "reason": reason,
-                                "lineage_chain": []
-                            }
-                        })
                     else:
-                        dep_table_name = self.extract_table_name_from_full_ref(dep_table)
-                        dep_visit_key = f"{dep_table}.{target_column}"
-                        
-                        if dep_visit_key not in visited:
-                            print(f"      ⬆️  Tracing upstream path {i}: {dep_table}")
-                            try:
-                                upstream_trace = self.trace_column_lineage_across_files(
-                                    dep_table_name, 
-                                    target_column, 
-                                    visited.copy(),
-                                    show_cte_messages=False
-                                )
-                                upstream_lineage.append({
-                                    "dependency": dep,
-                                    "upstream_trace": upstream_trace
-                                })
-                            except Exception as e:
-                                print(f"❌ Error tracing path {i} {dep_table}: {e}")
-                        else:
-                            print(f"      🔄 Already visited: {dep_table}")
+                        print(f"   🔄 Already visited: {dep_table}")
             
             return {
                 "table": presentation_table,
                 "column": target_column,
                 "type": "snapshot",
                 "snapshot_source_count": len(snapshot_dependencies),
-                "snapshot_strategy": "single_source" if len(snapshot_dependencies) == 1 else "multi_source",
                 "upstream_lineage": upstream_lineage,
-                "sql_file": str(self.table_to_file_map.get(presentation_table, "Unknown"))
+                "sql_file": str(self.table_to_file_map.get(self.extract_table_name_from_full_ref(presentation_table), "Unknown"))
             }
         
-        # Not a snapshot - proceed with existing logic
-        sql_content = self.load_sql_file(presentation_table)
+        # STEP 2: Not a snapshot - proceed with regular SQL file analysis
+        # For SQL file analysis, we need the table name, not the full reference
+        sql_table_name = self.extract_table_name_from_full_ref(presentation_table)
+        sql_content = self.load_sql_file(sql_table_name)
+        
         if not sql_content:
             # If file doesn't exist, treat as source
             print(f"✅ Found source table: {presentation_table} (missing_file)")
@@ -348,9 +380,9 @@ class DBTLineageTracer:
                 "reason": "missing_file",
                 "lineage_chain": []
             }
-            
+        
         try:
-            # Import your existing trace function
+            # Import the fixed column lineage function
             try:
                 from column_lineage import trace_column_lineage
             except ImportError:
@@ -366,353 +398,132 @@ class DBTLineageTracer:
             dependencies = single_file_trace.get('next_columns_to_search', [])
             cte_transformations = single_file_trace.get('cte_transformations', [])
             
-            # PRESERVE the original CTE transformations from this file's analysis
-            original_cte_transformations = cte_transformations.copy()
-            
-            # Show CTE message immediately after analysis, before dependency processing
-            if original_cte_transformations and show_cte_messages:
-                print(f"🔄 Found {len(original_cte_transformations)} intra-file CTE transformations in {presentation_table}")
-                for cte_info in original_cte_transformations:
+            # Show CTE transformations info
+            if cte_transformations and show_cte_messages:
+                print(f"🔄 Found {len(cte_transformations)} intra-file CTE transformations in {sql_table_name}")
+                for cte_info in cte_transformations:
                     cte_column = cte_info.get('column', cte_info.get('columns', 'unknown'))
                     print(f"   └─ CTE '{cte_info['cte_name']}' transforms {cte_column}")
             
-            # Initialize upstream_lineage before any processing
             upstream_lineage = []
-            
             print(f"📊 Found {len(dependencies)} external dependencies")
             
-            # CONSOLIDATE DEPENDENCIES THAT COME FROM SAME TABLE/CTE
-            # Group dependencies by table to detect when multiple columns come from same source
-            deps_by_table = {}
+            # STEP 3: Process dependencies - handle both snapshot and regular dependencies
             for dep in dependencies:
-                table_key = dep['table']
-                if table_key not in deps_by_table:
-                    deps_by_table[table_key] = []
-                deps_by_table[table_key].append(dep)
-            
-            # Check if any tables have multiple dependencies (potential CTE consolidation)
-            tables_with_multiple_deps = {table: deps for table, deps in deps_by_table.items() if len(deps) > 1}
-            
-            if tables_with_multiple_deps:
-                print(f"🔍 Detected {len(tables_with_multiple_deps)} tables with multiple dependencies - checking for CTE consolidation")
-                
-                for table_name, table_deps in tables_with_multiple_deps.items():
-                    print(f"   📋 Table '{table_name}' has {len(table_deps)} dependencies: {[dep['column'] for dep in table_deps]}")
+                try:
+                    dep_table = dep.get('table', 'unknown_table')
+                    dep_column = dep.get('column', 'unknown_column')
                     
-                    # Check if this is a CTE consolidation opportunity
-                    dep_table_name = self.extract_table_name_from_full_ref(table_name)
+                    print(f"   📋 Processing dependency: {dep_table}.{dep_column}")
                     
-                    # Load the SQL file and do a direct analysis to check for CTEs
-                    sql_content = self.load_sql_file(dep_table_name)
-                    has_ctes = False
-                    cte_info_by_dep = {}
+                    # CRITICAL FIX: For each dependency, check if it maps to a snapshot or model in manifest
+                    # This handles cases where SQL references a table that's actually managed by dbt
                     
-                    if sql_content:
-                        # Trace each dependency to get its CTE information 
-                        for dep in table_deps:
-                            dep_table = dep['table']
-                            dep_column = dep['column']
-                            dep_table_name = self.extract_table_name_from_full_ref(dep_table)
-                            
-                            try:
-                                dep_trace = self.trace_column_lineage_across_files(dep_table_name, dep_column, visited.copy(), show_cte_messages=False)
-                                
-                                if "error" not in dep_trace:
-                                    dep_cte_transformations = dep_trace.get("cte_transformations", [])
-                                    if dep_cte_transformations:
-                                        has_ctes = True
-                                        cte_info_by_dep[f"{dep_table}.{dep_column}"] = {
-                                            "dep": dep,
-                                            "trace": dep_trace,
-                                            "cte_transformations": dep_cte_transformations
-                                        }
-                            except Exception as e:
-                                print(f"   ⚠️  Error checking CTE for {dep_column}: {e}")
+                    # First, try to resolve this table reference through the manifest
+                    resolved_relation_name = self._resolve_table_to_relation_name(dep_table)
                     
-                    if has_ctes and len(cte_info_by_dep) > 1:
-                        # Multiple dependencies with CTEs - check for consolidation
-                        # Group by CTE name to find consolidation opportunities
-                        cte_groups = {}
-                        for dep_key, dep_info in cte_info_by_dep.items():
-                            for cte_transform in dep_info["cte_transformations"]:
-                                cte_name = cte_transform.get("cte_name")
-                                if cte_name:
-                                    if cte_name not in cte_groups:
-                                        cte_groups[cte_name] = []
-                                    cte_groups[cte_name].append({
-                                        "dep_key": dep_key,
-                                        "dep_info": dep_info,
-                                        "cte_transform": cte_transform
-                                    })
+                    if resolved_relation_name:
+                        print(f"   🔍 Resolved via manifest: {dep_table} -> {resolved_relation_name}")
+                        # Check if the resolved name is a snapshot
+                        resolved_snapshot_deps = self._check_snapshot_dependencies(resolved_relation_name)
                         
-                        # Process consolidated CTEs
-                        for cte_name, cte_group in cte_groups.items():
-                            if len(cte_group) > 1:
-                                # Found multiple dependencies from same CTE - consolidate!
-                                columns = []
-                                for item in cte_group:
-                                    cte_transform = item["cte_transform"]
-                                    if 'column' in cte_transform:
-                                        columns.append(cte_transform['column'])
-                                    elif 'columns' in cte_transform:
-                                        if isinstance(cte_transform['columns'], list):
-                                            columns.extend(cte_transform['columns'])
-                                        else:
-                                            columns.append(str(cte_transform['columns']))
-                                
-                                print(f"   🎯 CONSOLIDATED CTE DETECTED in '{dep_table_name}':")
-                                print(f"      └─ CTE '{cte_name}' processes {len(columns)} columns: {', '.join(columns)}")
-                                print(f"      └─ Replacing {len(columns)} separate dependency traces with 1 consolidated trace")
-                                
-                                # Add consolidated CTE entry to upstream lineage
-                                upstream_lineage.append({
-                                    "dependency_type": "CTE_CONSOLIDATED",
-                                    "cte_name": cte_name,
-                                    "table": table_name,
-                                    "columns": columns,
-                                    "consolidated_dependencies": [item["dep_info"]["dep"] for item in cte_group],
-                                    "upstream_trace": {
-                                        "table": self.extract_table_name_from_full_ref(table_name),
-                                        "column": f"CTE:{cte_name}",
-                                        "type": "cte_consolidated",
-                                        "cte_name": cte_name,
-                                        "consolidated_columns": columns,
-                                        "upstream_lineage": [],
-                                        "sql_file": str(self.table_to_file_map.get(self.extract_table_name_from_full_ref(table_name), "Unknown")),
-                                        "transformation_details": []  # Will be populated below
-                                    }
-                                })
-                                
-                                # Add ALL upstream traces from each dependency in the CTE group
-                                consolidated_entry = upstream_lineage[-1]
-                                transformation_details = []
-                                
-                                for item in cte_group:
-                                    dep_trace = item["dep_info"]["trace"]
-                                    cte_column = item["cte_transform"].get("column", "unknown")
-                                    
-                                    # Look deeper into the CTE transformations to get the actual aggregation logic
-                                    cte_transformations = dep_trace.get("cte_transformations", [])
-                                    
-                                    sql_expression = "unknown"
-                                    transformation_type = "unknown"
-                                    
-                                    # First try to get from CTE transformations (the actual CTE logic)
-                                    for cte_transform in cte_transformations:
-                                        if cte_transform.get("cte_name") == cte_name:
-                                            # Found the matching CTE - get its dependencies
-                                            cte_dependencies = cte_transform.get("dependencies", [])
-                                            for cte_dep in cte_dependencies:
-                                                if cte_dep.get("level") == "external_via_cte":
-                                                    # This is where the actual aggregation happens
-                                                    sql_expression = f"Aggregation from {cte_dep['table']}.{cte_dep['column']}"
-                                                    transformation_type = "aggregated"
-                                                    break
-                                    
-                                    # If that didn't work, try to extract from the LLM context of individual traces
-                                    if sql_expression == "unknown":
-                                        file_analysis = dep_trace.get("current_file_analysis", {})
-                                        if "llm_context" in file_analysis:
-                                            llm_context = file_analysis["llm_context"]
-                                            context_lines = llm_context.split('\n')
-                                            
-                                            for line in context_lines:
-                                                if line.startswith("EXPRESSION:"):
-                                                    expr = line.replace("EXPRESSION:", "").strip()
-                                                    # Skip if this is just the outer select (cm.column_name)
-                                                    if not expr.startswith("cm."):
-                                                        sql_expression = expr
-                                                        break
-                                                elif line.startswith("TRANSFORMATION TYPE:"):
-                                                    transformation_type = line.replace("TRANSFORMATION TYPE:", "").strip()
-                                    
-                                    # For known business logic columns, provide more specific expressions
-                                    if cte_column == "total_orders":
-                                        sql_expression = "COUNT(order_id) as total_orders"
-                                        transformation_type = "aggregated"
-                                    elif cte_column == "customer_lifetime_value":
-                                        sql_expression = "SUM(order_amount) as customer_lifetime_value"
-                                        transformation_type = "aggregated"
-                                    elif any(agg in sql_expression.upper() for agg in ["COUNT(", "SUM(", "AVG(", "MAX(", "MIN(", "MODE("]):
-                                        transformation_type = "aggregated"
-                                    elif sql_expression == "unknown" or sql_expression.startswith("cm."):
-                                        # Last resort: try to infer from common patterns
-                                        if "order" in cte_column.lower() and "count" in cte_column.lower():
-                                            sql_expression = f"COUNT(*) as {cte_column}"
-                                            transformation_type = "aggregated"
-                                        elif "total" in cte_column.lower() and "order" in cte_column.lower():
-                                            sql_expression = f"COUNT(order_id) as {cte_column}"
-                                            transformation_type = "aggregated"
-                                        elif "value" in cte_column.lower() or "amount" in cte_column.lower():
-                                            sql_expression = f"SUM(order_amount) as {cte_column}"
-                                            transformation_type = "aggregated"
-                                        elif "avg" in cte_column.lower() or "average" in cte_column.lower():
-                                            sql_expression = f"AVG(order_amount) as {cte_column}"
-                                            transformation_type = "aggregated"
-                                        else:
-                                            # Keep the original if we can't infer better
-                                            pass
-                                    
-                                    transformation_details.append({
-                                        "column": cte_column,
-                                        "sql_expression": sql_expression,
-                                        "transformation_type": transformation_type
-                                    })
-                                    
-                                    # Add upstream lineage from this dependency
-                                    if dep_trace.get("upstream_lineage"):
-                                        consolidated_entry["upstream_trace"]["upstream_lineage"].extend(dep_trace["upstream_lineage"])
-                                
-                                # Store the transformation details in the consolidated entry
-                                consolidated_entry["upstream_trace"]["transformation_details"] = transformation_details
-                                
-                                # Remove the individual dependencies since they're now consolidated
-                                for item in cte_group:
-                                    dep_to_remove = item["dep_info"]["dep"]
-                                    if dep_to_remove in dependencies:
-                                        dependencies.remove(dep_to_remove)
-                            else:
-                                # Single CTE dependency - process normally but add to upstream_lineage
-                                dep_info = cte_group[0]["dep_info"]
-                                upstream_lineage.append({
-                                    "dependency": dep_info["dep"],
-                                    "upstream_trace": dep_info["trace"]
-                                })
-                                
-                                # Remove from dependencies list
-                                if dep_info["dep"] in dependencies:
-                                    dependencies.remove(dep_info["dep"])
-                    else:
-                        # No CTEs found or single CTE - process normally
-                        for dep in table_deps:
-                            dep_table = dep['table']
-                            dep_column = dep['column']
-                            print(f"   📋 Processing dependency: {dep_table}.{dep_column}")
+                        if resolved_snapshot_deps:
+                            print(f"   📸 Resolved dependency is a snapshot!")
+                            # Recursively trace through the snapshot
+                            resolved_table_name = self.extract_table_name_from_full_ref(resolved_relation_name)
+                            dep_visit_key = f"{resolved_relation_name}.{dep_column}"
                             
-                            is_source, reason = self.is_source_table(dep_table)
-                            if is_source:
-                                print(f"   ✅ Found source: {dep_table}.{dep_column} ({reason})")
+                            if dep_visit_key not in visited:
+                                upstream_trace = self.trace_column_lineage_across_files(
+                                    resolved_table_name,
+                                    dep_column,
+                                    visited.copy(),
+                                    show_cte_messages=False
+                                )
+                                upstream_lineage.append({
+                                    "dependency": dep,
+                                    "upstream_trace": upstream_trace,
+                                    "resolved_via_manifest": True,
+                                    "original_reference": dep_table,
+                                    "resolved_reference": resolved_relation_name
+                                })
+                            else:
+                                print(f"   🔄 Already visited resolved: {resolved_relation_name}")
+                            continue
+                    
+                    # If not resolved via manifest, proceed with original logic
+                    is_source, reason = self.is_source_table(dep_table)
+                    
+                    if is_source:
+                        print(f"   ✅ Found source: {dep_table}.{dep_column} ({reason})")
+                        upstream_lineage.append({
+                            "dependency": dep,
+                            "upstream_trace": {
+                                "table": dep_table,
+                                "column": dep_column,
+                                "type": "source",
+                                "reason": reason,
+                                "lineage_chain": []
+                            }
+                        })
+                    elif reason == "potential_cte":
+                        print(f"   🔄 CTE reference: {dep_table}.{dep_column}")
+                        upstream_lineage.append({
+                            "dependency": dep,
+                            "upstream_trace": {
+                                "table": dep_table,
+                                "column": dep_column,
+                                "type": "cte_reference", 
+                                "reason": "resolved_internally",
+                                "lineage_chain": []
+                            }
+                        })
+                    else:
+                        # Internal table - continue tracing
+                        dep_table_name = self.extract_table_name_from_full_ref(dep_table)
+                        dep_visit_key = f"{dep_table}.{dep_column}"
+                        
+                        if dep_visit_key not in visited:
+                            print(f"   ⬆️  Tracing upstream: {dep_table}.{dep_column}")  
+                            try:
+                                upstream_trace = self.trace_column_lineage_across_files(
+                                    dep_table_name,
+                                    dep_column,
+                                    visited.copy(),
+                                    show_cte_messages=False
+                                )
+                                upstream_lineage.append({
+                                    "dependency": dep,
+                                    "upstream_trace": upstream_trace
+                                })
+                            except Exception as e:
+                                print(f"❌ Error tracing {dep_table_name}.{dep_column}: {e}")
                                 upstream_lineage.append({
                                     "dependency": dep,
                                     "upstream_trace": {
-                                        "table": dep_table,
+                                        "table": dep_table_name,
                                         "column": dep_column,
-                                        "type": "source",
-                                        "reason": reason,
+                                        "type": "error",
+                                        "error": str(e),
                                         "lineage_chain": []
                                     }
                                 })
-                            else:
-                                dep_table_name = self.extract_table_name_from_full_ref(dep_table)
-                                dep_visit_key = f"{dep_table}.{dep_column}"
-                                if dep_visit_key not in visited:
-                                    print(f"   ⬆️  Tracing upstream: {dep_table}.{dep_column}")
-                                    try:
-                                        upstream_trace = self.trace_column_lineage_across_files(
-                                            dep_table_name, dep_column, visited.copy(), show_cte_messages=False
-                                        )
-                                        upstream_lineage.append({
-                                            "dependency": dep,
-                                            "upstream_trace": upstream_trace
-                                        })
-                                    except Exception as e:
-                                        print(f"❌ Error tracing {dep_table_name}.{dep_column}: {e}")
-                            
-                            # Remove processed dependency
-                            if dep in dependencies:
-                                dependencies.remove(dep)
-            
-            # Process remaining individual dependencies normally
-            if dependencies:
-                print(f"📊 Processing {len(dependencies)} remaining individual dependencies")
-                
-                for dep in dependencies:
-                    try:
-                        dep_table = dep.get('table', 'unknown_table')
-                        dep_column = dep.get('column', 'unknown_column')
-                        
-                        print(f"   📋 Processing dependency: {dep_table}.{dep_column}")
-                        
-                        # Check if this dependency is a source table
-                        is_source, reason = self.is_source_table(dep_table)
-                        
-                        if is_source:
-                            print(f"   ✅ Found source: {dep_table}.{dep_column} ({reason})")
-                            upstream_lineage.append({
-                                "dependency": dep,
-                                "upstream_trace": {
-                                    "table": dep_table,
-                                    "column": dep_column,
-                                    "type": "source",
-                                    "reason": reason,
-                                    "lineage_chain": []
-                                }
-                            })
-                        elif reason == "potential_cte":
-                            print(f"   🔄 CTE reference found: {dep_table}.{dep_column} - checking for internal resolution")
-                            upstream_lineage.append({
-                                "dependency": dep,
-                                "upstream_trace": {
-                                    "table": dep_table,
-                                    "column": dep_column,
-                                    "type": "cte_reference",
-                                    "reason": "resolved_internally",
-                                    "lineage_chain": []
-                                }
-                            })
                         else:
-                            # Extract table name and recursively trace
-                            dep_table_name = self.extract_table_name_from_full_ref(dep_table)
+                            print(f"   🔄 Already visited: {dep_table}.{dep_column}")
                             
-                            # Skip if we've already visited this table.column combination
-                            dep_visit_key = f"{dep_table}.{dep_column}"
-                            if dep_visit_key not in visited:
-                                print(f"   ⬆️  Tracing upstream: {dep_table}.{dep_column}")
-                                
-                                try:
-                                    upstream_trace = self.trace_column_lineage_across_files(
-                                        dep_table_name, 
-                                        dep_column, 
-                                        visited.copy(),
-                                        show_cte_messages=False
-                                    )
-                                    
-                                    upstream_lineage.append({
-                                        "dependency": dep,
-                                        "upstream_trace": upstream_trace
-                                    })
-                                except Exception as e:
-                                    print(f"❌ Error tracing {dep_table_name}.{dep_column}: {e}")
-                                    # Add a fallback entry so processing can continue
-                                    upstream_lineage.append({
-                                        "dependency": dep,
-                                        "upstream_trace": {
-                                            "table": dep_table_name,
-                                            "column": dep_column,
-                                            "type": "error",
-                                            "error": str(e),
-                                            "lineage_chain": []
-                                        }
-                                    })
-                            else:
-                                print(f"   🔄 Already visited: {dep_table}.{dep_column}")
-                                
-                    except Exception as e:
-                        print(f"❌ Error processing dependency {dep}: {e}")
-                        # Continue with next dependency
-                        continue
+                except Exception as e:
+                    print(f"❌ Error processing dependency {dep}: {e}")
+                    continue
             
-            final_result = {
+            return {
                 "table": presentation_table,
                 "column": target_column,
                 "type": "intermediate",
                 "current_file_analysis": single_file_trace,
-                "cte_transformations": original_cte_transformations,
+                "cte_transformations": cte_transformations,
                 "upstream_lineage": upstream_lineage,
-                "sql_file": str(self.table_to_file_map.get(presentation_table, "Unknown"))
+                "sql_file": str(self.table_to_file_map.get(sql_table_name, "Unknown"))
             }
-            
-            return final_result
             
         except Exception as e:
             print(f"❌ Error tracing column in {presentation_table}: {e}")
@@ -1290,7 +1101,7 @@ def build_enhanced_visual_dag(technical_context, include_source_definitions=Fals
         for snapshot in snapshot_steps:
             table = snapshot.get('table', 'unknown')
             table_with_upstream = format_table_with_upstream(table, dependencies)
-            dag_lines.append(f"    📸 {table_with_upstream} (DBT Snapshot - SCD Type 2)")
+            dag_lines.append(f"    📸 {table_with_upstream} (DBT Snapshot)")
             dag_lines.append(f"        └─ Captures historical changes with validity dates")
         dag_lines.append("      ↓")
         dag_lines.append("   [FLOWS TO MART TABLES]")

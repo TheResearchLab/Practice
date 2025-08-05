@@ -1000,6 +1000,7 @@ def build_enhanced_visual_dag(technical_context, include_source_definitions=Fals
     """
     Build architectural DAG showing actual data flow layers with CORRECT ORDER and PARALLEL FLOWS
     FIXED: Uses dependency relationships to determine proper flow, shows parallel tables within layers
+    FIXED: Now uses topological sorting within layers and shows intra-layer dependencies
     """
     if "error" in technical_context:
         return "Error building enhanced DAG"
@@ -1059,9 +1060,8 @@ def build_enhanced_visual_dag(technical_context, include_source_definitions=Fals
                         if upstream_trace and isinstance(upstream_trace, dict):
                             upstream_table = upstream_trace.get('table', '').split('.')[-1]
                             if upstream_table and upstream_table != 'unknown':
-                                # Only add non-source dependencies for ordering
-                                if upstream_trace.get('type') not in ['source', 'error']:
-                                    deps[table].add(upstream_table)
+                                # Add ALL dependencies, including sources for complete picture
+                                deps[table].add(upstream_table)
                             
                             # Recursively process upstream
                             walk_dependencies(upstream_trace)
@@ -1091,6 +1091,54 @@ def build_enhanced_visual_dag(technical_context, include_source_definitions=Fals
         if layer in layers:
             layers[layer].append(table)
     
+    def topological_sort_within_layer(tables, layer_name):
+        """
+        Topologically sort tables within a layer based on their dependencies
+        Returns sorted list with intra-layer dependencies identified
+        """
+        if not tables:
+            return []
+        
+        # Get dependencies within this layer only
+        layer_tables = set(tables)
+        intra_layer_deps = {}
+        
+        for table in tables:
+            table_deps = table_dependencies.get(table, set())
+            # Only include dependencies that are also in this layer
+            intra_deps = table_deps.intersection(layer_tables)
+            intra_layer_deps[table] = intra_deps
+        
+        # Topological sort using Kahn's algorithm
+        # Calculate in-degrees (number of dependencies within layer)
+        in_degree = {table: len(intra_layer_deps[table]) for table in tables}
+        
+        # Start with tables that have no dependencies within the layer
+        queue = [table for table in tables if in_degree[table] == 0]
+        sorted_tables = []
+        
+        while queue:
+            # Sort the queue to ensure consistent ordering
+            queue.sort()
+            current = queue.pop(0)
+            sorted_tables.append(current)
+            
+            # For each table that depends on current, reduce its in-degree
+            for table in tables:
+                if current in intra_layer_deps[table]:
+                    in_degree[table] -= 1
+                    if in_degree[table] == 0:
+                        queue.append(table)
+        
+        # If we couldn't sort all tables, there might be cycles
+        if len(sorted_tables) != len(tables):
+            # Add remaining tables (potential cycles)
+            remaining = set(tables) - set(sorted_tables)
+            sorted_tables.extend(sorted(remaining))
+            print(f"⚠️  Potential circular dependencies in {layer_name} layer: {remaining}")
+        
+        return sorted_tables, intra_layer_deps
+    
     # Layer display configuration
     layer_order = ['source', 'staging', 'work', 'other', 'snapshot', 'mart']
     layer_config = {
@@ -1111,9 +1159,9 @@ def build_enhanced_visual_dag(technical_context, include_source_definitions=Fals
         layer_config_item = layer_config[layer_key]
         
         if layer_key == 'source':
-            # Special handling for sources
+            # Special handling for sources - simple alphabetical sort
             dag_lines.append(f"{layer_config_item['name']}:")
-            for table in layer_tables:
+            for table in sorted(layer_tables):
                 step_info = all_tables[table]['step_info']
                 column = step_info.get('column', 'unknown')
                 reason = step_info.get('source_reason', 'unknown')
@@ -1130,20 +1178,23 @@ def build_enhanced_visual_dag(technical_context, include_source_definitions=Fals
                     dag_lines.append(f"    {layer_config_item['emoji']} {table}.{column} ({reason})")
         
         elif layer_key == 'snapshot':
-            # Special handling for snapshots
+            # Special handling for snapshots - topological sort
+            sorted_tables, intra_deps = topological_sort_within_layer(layer_tables, layer_key)
             dag_lines.append(f"{layer_config_item['name']}:")
-            for table in layer_tables:
-                # Get upstream dependencies to show convergence
-                upstream_deps = table_dependencies.get(table, set())
+            
+            for table in sorted_tables:
+                # Get all dependencies (not just intra-layer)
+                all_deps = table_dependencies.get(table, set())
+                intra_layer_deps = intra_deps.get(table, set())
                 
-                if len(upstream_deps) > 1:
+                if len(all_deps) > 1:
                     # Multiple sources - show convergence
-                    upstream_list = sorted(list(upstream_deps))
-                    dag_lines.append(f"    {layer_config_item['emoji']} {table} ← ({', '.join(upstream_list)}) (DBT Snapshot - SCD Type 2)")
-                    dag_lines.append(f"        └─ Converges {len(upstream_deps)} upstream tables into historical snapshot")
-                elif len(upstream_deps) == 1:
+                    all_deps_list = sorted(list(all_deps))
+                    dag_lines.append(f"    {layer_config_item['emoji']} {table} ← ({', '.join(all_deps_list)}) (DBT Snapshot - SCD Type 2)")
+                    dag_lines.append(f"        └─ Converges {len(all_deps)} upstream tables into historical snapshot")
+                elif len(all_deps) == 1:
                     # Single source
-                    upstream_table = list(upstream_deps)[0]
+                    upstream_table = list(all_deps)[0]
                     dag_lines.append(f"    {layer_config_item['emoji']} {table} ← ({upstream_table}) (DBT Snapshot - SCD Type 2)")
                     dag_lines.append(f"        └─ Captures historical changes with validity dates")
                 else:
@@ -1152,15 +1203,9 @@ def build_enhanced_visual_dag(technical_context, include_source_definitions=Fals
                     dag_lines.append(f"        └─ Captures historical changes with validity dates")
         
         else:
-            # Regular transformation layers
+            # Regular transformation layers - use topological sorting
+            sorted_tables, intra_deps = topological_sort_within_layer(layer_tables, layer_key)
             dag_lines.append(f"{layer_config_item['name']}:")
-            
-            # Sort tables within layer by dependencies (if any)
-            def sort_by_dependencies(tables):
-                # Simple sort - tables with fewer dependencies first
-                return sorted(tables, key=lambda t: len(table_dependencies.get(t, set())))
-            
-            sorted_tables = sort_by_dependencies(layer_tables)
             
             for table in sorted_tables:
                 step_info = all_tables[table]['step_info']
@@ -1168,15 +1213,29 @@ def build_enhanced_visual_dag(technical_context, include_source_definitions=Fals
                 transform_type = step_info.get('transformation_type', 'unknown')
                 complexity = step_info.get("complexity_level", "").split(" - ")[0] if " - " in step_info.get("complexity_level", "") else ""
                 
-                # Get upstream dependencies for display
-                upstream_deps = table_dependencies.get(table, set())
+                # Get dependencies for display
+                all_deps = table_dependencies.get(table, set())
+                intra_layer_deps = intra_deps.get(table, set())
                 
-                # Format table with upstream
-                if upstream_deps:
-                    upstream_list = sorted(list(upstream_deps))
-                    table_display = f"{table} ← ({', '.join(upstream_list)})"
+                # Choose display format based on dependencies
+                if intra_layer_deps:
+                    # Has intra-layer dependencies - show them specifically
+                    intra_list = sorted(list(intra_layer_deps))
+                    table_display = f"{table} ← ({', '.join(intra_list)})"
+                    dependency_note = f"depends on {len(intra_layer_deps)} table(s) in same layer"
+                elif all_deps:
+                    # Has dependencies from other layers
+                    other_layer_deps = all_deps - intra_layer_deps
+                    if other_layer_deps:
+                        other_list = sorted(list(other_layer_deps))
+                        table_display = f"{table} ← ({', '.join(other_list)})"
+                        dependency_note = f"depends on {len(other_layer_deps)} table(s) from other layers"
+                    else:
+                        table_display = table
+                        dependency_note = None
                 else:
                     table_display = table
+                    dependency_note = None
                 
                 # Choose emoji based on complexity or layer
                 if complexity == "HIGH":
@@ -1188,6 +1247,10 @@ def build_enhanced_visual_dag(technical_context, include_source_definitions=Fals
                 
                 dag_lines.append(f"    {emoji} {table_display}")
                 dag_lines.append(f"        └─ {column} ({transform_type})")
+                
+                # Show dependency information
+                if dependency_note:
+                    dag_lines.append(f"        └─ {dependency_note}")
                 
                 # Show transformation details
                 if step_info.get("sql_expression"):

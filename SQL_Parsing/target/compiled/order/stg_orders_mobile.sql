@@ -14,6 +14,6 @@ select
     mobile_device_type,
     app_version,
     current_timestamp() as updated_at
-from raw_data_db.order_data.orders_mobile
+from ph_land_db.order_data.orders_mobile
 where order_id is not null
     and order_amount > 0

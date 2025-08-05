@@ -13,6 +13,6 @@ select
     order_status,
     store_location,
     current_timestamp() as updated_at
-from raw_data_db.order_data.orders_retail  
+from ph_land_db.order_data.orders_retail  
 where order_id is not null
     and order_amount > 0

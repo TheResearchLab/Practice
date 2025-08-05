@@ -238,18 +238,6 @@ class DBTLineageTracer:
         return full_table_name.split('.')[-1]
     
     def is_source_table(self, full_table_name: str) -> Tuple[bool, str]:
-        """
-        Determine if a table is a source table:
-        1. Database name does NOT start with internal prefixes
-        2. OR table file doesn't exist in our project
-        3. BUT exclude CTEs (which should be traced internally)
-        
-        Args:
-            full_table_name: Fully qualified table name
-            
-        Returns:
-            Tuple of (is_source, reason)
-        """
         # Check if this looks like a CTE (simple table name without schema/database)
         parts = full_table_name.split('.')
         if len(parts) == 1:
@@ -262,12 +250,19 @@ class DBTLineageTracer:
         if not starts_with_internal:
             return True, "external_database"
             
-        # Check if file exists in our project
+        # Check if file exists in our project - TRY STAGING PATTERN TOO
         table_name = self.extract_table_name_from_full_ref(full_table_name)
-        if table_name not in self.table_to_file_map:
-            return True, "missing_file"
+        
+        # Try exact match first
+        if table_name in self.table_to_file_map:
+            return False, "internal_table"
+        
+        # Try staging pattern for source tables
+        stg_pattern = f"stg_{table_name}"
+        if stg_pattern in self.table_to_file_map:
+            return False, f"internal_via_staging"
             
-        return False, "internal_table"
+        return True, "missing_file"
     
     def load_sql_file(self, table_name: str) -> Optional[str]:
         """
@@ -292,6 +287,8 @@ class DBTLineageTracer:
     def trace_column_lineage_across_files(self, presentation_table: str, target_column: str, visited: Optional[Set[str]] = None, show_cte_messages: bool = True) -> Dict:
         """
         FIXED: Properly bridges between SQL references, manifest data, and back to SQL
+        FIXED: Now properly tracks resolved table names for accurate DAG visualization
+        FIXED: Implements staging boundary logic - stops tracing at staging models
         """
         if visited is None:
             visited = set()
@@ -368,10 +365,22 @@ class DBTLineageTracer:
         # STEP 2: Not a snapshot - proceed with regular SQL file analysis
         # For SQL file analysis, we need the table name, not the full reference
         sql_table_name = self.extract_table_name_from_full_ref(presentation_table)
+        original_table_name = sql_table_name  # Keep track of original name
+        resolved_table_name = None  # Track if we resolved it
+        
         sql_content = self.load_sql_file(sql_table_name)
         
+        # NEW: If direct load failed, try staging pattern for source tables
         if not sql_content:
-            # If file doesn't exist, treat as source
+            stg_pattern = f"stg_{sql_table_name}"
+            sql_content = self.load_sql_file(stg_pattern)
+            if sql_content:
+                print(f"🔄 Resolved {sql_table_name} → {stg_pattern}")
+                resolved_table_name = stg_pattern  # Track that we resolved it
+                sql_table_name = stg_pattern  # Update the table name for downstream processing
+        
+        if not sql_content:
+            # If still no file found, treat as source
             print(f"✅ Found source table: {presentation_table} (missing_file)")
             return {
                 "table": presentation_table,
@@ -408,6 +417,13 @@ class DBTLineageTracer:
             upstream_lineage = []
             print(f"📊 Found {len(dependencies)} external dependencies")
             
+            # CRITICAL FIX: Use resolved name to determine current layer
+            current_table_name = resolved_table_name if resolved_table_name else sql_table_name
+            is_staging_model = current_table_name.startswith('stg_')
+            
+            if is_staging_model:
+                print(f"🏁 STAGING BOUNDARY: {current_table_name} is a staging model - treating all dependencies as sources")
+            
             # STEP 3: Process dependencies - handle both snapshot and regular dependencies
             for dep in dependencies:
                 try:
@@ -416,6 +432,22 @@ class DBTLineageTracer:
                     
                     print(f"   📋 Processing dependency: {dep_table}.{dep_column}")
                     
+                    # NEW STAGING BOUNDARY LOGIC: If we're in a staging model, treat all dependencies as sources
+                    if is_staging_model:
+                        print(f"   🏁 Staging boundary: treating {dep_table}.{dep_column} as ultimate source")
+                        upstream_lineage.append({
+                            "dependency": dep,
+                            "upstream_trace": {
+                                "table": dep_table,
+                                "column": dep_column,
+                                "type": "source",
+                                "reason": "staging_boundary",
+                                "lineage_chain": []
+                            }
+                        })
+                        continue  # Skip all other resolution logic for staging models
+                    
+                    # EXISTING LOGIC: Only applies to non-staging models
                     # CRITICAL FIX: For each dependency, check if it maps to a snapshot or model in manifest
                     # This handles cases where SQL references a table that's actually managed by dbt
                     
@@ -430,12 +462,12 @@ class DBTLineageTracer:
                         if resolved_snapshot_deps:
                             print(f"   📸 Resolved dependency is a snapshot!")
                             # Recursively trace through the snapshot
-                            resolved_table_name = self.extract_table_name_from_full_ref(resolved_relation_name)
+                            resolved_table_name_dep = self.extract_table_name_from_full_ref(resolved_relation_name)
                             dep_visit_key = f"{resolved_relation_name}.{dep_column}"
                             
                             if dep_visit_key not in visited:
                                 upstream_trace = self.trace_column_lineage_across_files(
-                                    resolved_table_name,
+                                    resolved_table_name_dep,
                                     dep_column,
                                     visited.copy(),
                                     show_cte_messages=False
@@ -515,14 +547,21 @@ class DBTLineageTracer:
                     print(f"❌ Error processing dependency {dep}: {e}")
                     continue
             
+            # CRITICAL FIX: Use the resolved table name for accurate layer classification
+            # This ensures the DAG shows stg_source_table_3 instead of source_table_3
+            result_table_name = resolved_table_name if resolved_table_name else presentation_table
+            
             return {
-                "table": presentation_table,
+                "table": result_table_name,  # Use resolved name if available
                 "column": target_column,
                 "type": "intermediate",
                 "current_file_analysis": single_file_trace,
                 "cte_transformations": cte_transformations,
                 "upstream_lineage": upstream_lineage,
-                "sql_file": str(self.table_to_file_map.get(sql_table_name, "Unknown"))
+                "sql_file": str(self.table_to_file_map.get(sql_table_name, "Unknown")),
+                "original_table_name": original_table_name,  # Keep track of original for debugging
+                "was_resolved": bool(resolved_table_name),  # Flag indicating if resolution occurred
+                "is_staging_boundary": is_staging_model  # Flag indicating this is a staging boundary
             }
             
         except Exception as e:

@@ -12,6 +12,6 @@ select
     shipping_cost,
     order_status,
     current_timestamp() as updated_at
-from raw_data_db.order_data.orders_online
+from ph_land_db.order_data.orders_online
 where order_id is not null
     and order_amount > 0
